@@ -173,11 +173,11 @@ async function importarShowsPadrao(){
   await carregarDados();APP.loading=false;render();
 }
 
-function render(){document.getElementById('app').innerHTML=buildHTML();bindEvents();if(APP.user&&APP.tab==='dash')setTimeout(drawChart,50);}
+function render(){document.getElementById('app').innerHTML=buildHTML();bindEvents();if(APP.user&&APP.tab==='dash')setTimeout(drawChart,50);if(APP.user&&APP.tab==='mapa')setTimeout(renderMapaSVG,50);}
 
 function buildHTML(){
   if(!APP.user)return buildLogin();
-  return`${buildHeader()}${buildNav()}<div class="content">${APP.flash?`<div class="alert alert-${APP.flash.tipo==='err'?'err':'ok'}">${APP.flash.msg}</div>`:''}${APP.tab==='dash'?buildDash():APP.tab==='shows'?buildShows():APP.tab==='desps'?buildDesps():buildFluxo()}</div>${APP.modal?buildModal():''}`;
+  return`${buildHeader()}${buildNav()}<div class="content">${APP.flash?`<div class="alert alert-${APP.flash.tipo==='err'?'err':'ok'}">${APP.flash.msg}</div>`:''}${APP.tab==='dash'?buildDash():APP.tab==='shows'?buildShows():APP.tab==='desps'?buildDesps():APP.tab==='fluxo'?buildFluxo():buildMapa()}</div>${APP.modal?buildModal():''}`;
 }
 
 function buildLogin(){
@@ -227,7 +227,7 @@ function buildHeader(){
 }
 
 function buildNav(){
-  return`<div class="nav">${[['dash','📊','Dashboard'],['shows','🎤','Shows'],['desps','💸','Despesas'],['fluxo','📈','Fluxo']].map(([id,ic,lb])=>`
+  return`<div class="nav">${[['dash','📊','Dashboard'],['shows','🎤','Shows'],['desps','💸','Despesas'],['fluxo','📈','Fluxo'],['mapa','🗺️','Mapa']].map(([id,ic,lb])=>`
   <button class="nav-btn" id="nav-${id}" style="border-bottom:2px solid ${APP.tab===id?'var(--ac)':'transparent'};color:${APP.tab===id?'var(--ac)':'var(--mt)'}">
     <span style="font-size:18px">${ic}</span>${lb}
   </button>`).join('')}</div>`;
@@ -545,7 +545,7 @@ function bindEvents(){
   const bS=document.getElementById('btn-sair');
   if(bS)bS.onclick=async()=>{if(APP.chart){APP.chart.destroy();APP.chart=null;}await sb.auth.signOut();APP.user=null;APP.role=null;APP.shows=[];APP.desps=[];APP.tab='dash';render();};
   // NAV
-  ['dash','shows','desps','fluxo'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.onclick=()=>{APP.tab=t;render();};});
+  ['dash','shows','desps','fluxo','mapa'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.onclick=()=>{APP.tab=t;render();};});
   // FILTROS
   ['todos','CONFIRMADO','ABERTO','RECEBIDO','SINAL PAGO','CANCELADO'].forEach(f=>{const el=document.getElementById('fst-'+f.replace(' ','-'));if(el)el.onclick=()=>{APP.filtroSt=f;render();};});
   // IMPORTAR
@@ -586,6 +586,198 @@ function bindEvents(){
     salvarDesp(f,APP.modal.novo?null:APP.modal.form.id);
   };
   const bDD=document.getElementById('btn-del-desp');if(bDD)bDD.onclick=()=>excluirDesp(APP.modal.form.id);
+}
+
+
+// ── GEO DATA BRASIL ─────────────────────────────────────────────
+const STATES_GEO = [{"sigla": "AC", "name": "Acre", "d": "M 25.3,220.4 L 38.5,227.2 L 70.4,235.6 L 122.6,264.0 L 107.4,277.3 L 103.1,276.3 L 95.8,283.8 L 83.8,280.9 L 66.9,282.0 L 68.7,256.4 L 58.7,265.2 L 50.2,265.8 L 45.2,265.7 L 42.6,257.4 L 30.8,256.2 L 34.7,249.3 L 29.9,241.0 L 26.4,239.1 L 23.0,231.8 L 24.2,229.5 L 20.0,226.1 L 20.4,222.7 L 23.9,222.3 L 23.4,219.4 Z", "cx": 70.5, "cy": 263.2}, {"sigla": "AL", "name": "Alagoas", "d": "M 556.1,246.7 L 560.1,249.1 L 543.2,273.9 L 535.2,265.6 L 517.5,254.8 L 524.2,247.2 L 535.5,255.7 L 545.5,252.3 L 547.8,248.1 L 556.2,246.5 Z", "cx": 541.4, "cy": 256.0}, {"sigla": "AM", "name": "Amazonas", "d": "M 112.7,72.1 L 115.9,76.8 L 116.1,85.9 L 119.3,84.9 L 126.8,92.5 L 137.0,88.4 L 137.6,94.2 L 143.6,86.1 L 147.8,83.5 L 148.8,84.9 L 153.5,80.1 L 154.3,82.7 L 159.0,72.9 L 170.6,69.6 L 177.0,73.5 L 175.6,78.9 L 180.7,88.9 L 179.4,96.4 L 184.2,110.1 L 179.8,116.9 L 188.3,127.0 L 194.2,129.9 L 192.2,127.1 L 192.6,119.6 L 197.8,112.6 L 201.9,113.5 L 205.4,118.9 L 210.4,116.2 L 209.1,112.8 L 214.2,100.4 L 230.1,100.4 L 230.4,110.1 L 238.0,122.9 L 240.4,124.3 L 242.3,122.3 L 243.1,127.1 L 254.1,132.2 L 260.9,140.1 L 269.0,137.1 L 264.9,141.1 L 235.9,212.3 L 240.6,222.8 L 237.2,230.7 L 237.0,245.9 L 192.3,246.2 L 190.9,244.4 L 187.1,247.5 L 175.3,233.2 L 164.3,232.8 L 162.2,238.5 L 159.8,238.6 L 156.9,248.8 L 147.3,249.4 L 143.8,256.5 L 141.7,253.7 L 134.1,259.0 L 131.6,256.2 L 125.5,256.1 L 120.0,262.7 L 70.4,235.6 L 38.5,227.2 L 22.6,218.9 L 24.9,213.1 L 31.9,209.0 L 30.5,201.5 L 36.4,186.6 L 49.3,177.1 L 62.4,175.0 L 66.4,170.8 L 71.0,171.1 L 72.8,174.7 L 76.0,173.7 L 83.9,122.5 L 80.9,112.7 L 74.7,107.6 L 74.9,95.6 L 82.8,92.8 L 87.8,94.4 L 85.8,87.5 L 77.7,87.2 L 77.7,77.0 L 101.2,76.8 L 100.5,73.1 L 104.3,75.2 L 111.6,68.6 L 112.7,71.8 Z", "cx": 135.1, "cy": 146.2}, {"sigla": "AP", "name": "Amapá", "d": "M 337.4,40.3 L 344.1,70.3 L 347.8,69.4 L 350.5,75.7 L 355.1,77.5 L 355.3,85.6 L 352.5,93.3 L 348.1,94.6 L 344.9,101.3 L 336.9,106.5 L 328.7,123.2 L 325.0,124.4 L 320.0,121.3 L 318.7,113.9 L 310.8,101.5 L 310.6,93.6 L 306.4,89.7 L 306.2,84.7 L 297.1,80.8 L 293.9,76.7 L 287.8,76.1 L 286.0,65.9 L 288.7,65.4 L 292.1,69.2 L 301.8,66.5 L 312.8,69.9 L 318.3,64.2 L 321.1,54.3 L 330.9,39.8 L 332.3,33.6 L 337.4,40.1 Z", "cx": 319.2, "cy": 72.2}, {"sigla": "BA", "name": "Bahia", "d": "M 502.9,242.4 L 511.5,249.1 L 513.2,246.6 L 514.1,249.5 L 516.4,249.3 L 524.5,271.1 L 523.4,277.0 L 517.9,277.3 L 517.6,280.5 L 523.4,290.5 L 530.0,289.4 L 520.2,308.8 L 507.4,319.4 L 506.0,343.1 L 508.9,362.2 L 504.0,383.7 L 505.0,392.9 L 497.6,403.9 L 489.9,397.7 L 489.9,393.6 L 484.3,388.0 L 486.2,379.3 L 489.1,379.6 L 489.0,374.5 L 495.0,366.5 L 489.8,361.2 L 481.7,358.7 L 474.5,360.3 L 474.1,356.1 L 468.0,349.6 L 463.9,351.0 L 448.8,342.1 L 443.9,344.8 L 439.0,342.2 L 440.4,336.9 L 434.4,335.2 L 408.4,352.3 L 410.8,337.2 L 405.8,332.9 L 406.1,321.9 L 408.9,319.3 L 405.6,320.6 L 404.9,319.0 L 407.9,313.5 L 405.3,314.0 L 407.4,306.3 L 404.6,303.9 L 404.0,299.1 L 407.1,296.9 L 404.3,296.3 L 405.1,292.4 L 408.4,292.4 L 402.8,290.5 L 400.9,286.8 L 406.6,276.3 L 415.0,267.5 L 419.9,279.1 L 424.4,280.9 L 429.1,276.0 L 435.5,276.1 L 442.0,265.8 L 439.4,258.4 L 444.5,253.8 L 447.4,256.4 L 451.7,256.1 L 454.5,259.5 L 461.9,254.1 L 467.4,253.4 L 473.8,244.7 L 477.5,244.7 L 483.5,251.7 L 482.2,256.9 L 484.3,257.3 L 488.4,255.2 L 489.6,250.4 L 493.6,250.3 L 497.3,244.0 L 502.7,242.4 Z", "cx": 466.9, "cy": 318.1}, {"sigla": "CE", "name": "Ceará", "d": "M 492.8,150.1 L 514.3,164.1 L 531.3,182.2 L 525.8,183.7 L 518.6,200.1 L 513.5,204.1 L 510.2,215.7 L 513.4,222.0 L 510.5,227.8 L 505.7,231.0 L 497.7,222.1 L 485.4,223.5 L 487.9,213.9 L 482.8,211.5 L 480.1,187.6 L 475.6,182.8 L 477.8,171.5 L 473.2,158.6 L 474.6,151.5 L 492.7,150.1 Z", "cx": 499.2, "cy": 187.8}, {"sigla": "ES", "name": "Espírito Santo", "d": "M 482.9,446.4 L 479.7,454.3 L 469.1,451.2 L 469.2,446.9 L 466.9,445.1 L 467.3,437.6 L 468.6,435.5 L 473.8,435.2 L 479.9,422.8 L 478.9,414.6 L 475.7,411.9 L 480.3,411.8 L 478.8,405.8 L 476.6,405.5 L 477.8,401.3 L 482.3,400.7 L 480.5,397.7 L 488.4,396.8 L 497.6,403.7 L 496.8,422.9 L 491.1,431.0 L 487.1,442.8 L 483.0,446.3 Z", "cx": 480.6, "cy": 428.8}, {"sigla": "GO", "name": "Goiás", "d": "M 351.7,305.2 L 349.8,312.2 L 362.6,319.3 L 366.1,311.4 L 368.1,314.1 L 369.8,311.6 L 372.8,315.1 L 373.5,320.1 L 374.6,316.9 L 375.5,319.6 L 379.7,317.3 L 379.4,319.9 L 380.8,318.7 L 386.2,322.5 L 386.8,316.5 L 389.7,319.6 L 399.1,314.3 L 403.2,314.4 L 403.7,311.9 L 404.5,314.7 L 407.9,313.5 L 404.9,319.0 L 405.6,320.6 L 408.9,319.3 L 406.1,321.9 L 405.6,328.0 L 405.8,332.9 L 410.8,337.2 L 409.0,345.8 L 405.5,346.7 L 402.5,343.0 L 402.4,348.9 L 396.6,348.8 L 398.2,362.6 L 391.0,365.0 L 389.8,356.2 L 378.9,356.2 L 377.7,361.7 L 377.8,365.4 L 391.4,365.5 L 389.2,372.9 L 393.8,381.4 L 388.1,388.9 L 391.7,390.9 L 391.7,399.0 L 382.3,406.5 L 378.0,403.6 L 368.6,403.2 L 362.3,409.0 L 360.3,406.4 L 349.5,409.8 L 342.1,423.4 L 319.8,409.7 L 313.3,408.9 L 315.5,403.9 L 310.7,403.3 L 308.6,391.4 L 311.9,378.9 L 317.2,373.7 L 316.5,369.6 L 322.5,362.7 L 327.7,361.6 L 330.9,350.9 L 338.7,346.5 L 341.7,326.9 L 347.2,310.1 L 351.9,304.9 Z", "cx": 366.4, "cy": 361.4}, {"sigla": "MA", "name": "Maranhão", "d": "M 395.2,249.3 L 398.3,239.7 L 402.3,238.0 L 403.0,234.3 L 401.1,231.6 L 395.0,234.1 L 387.4,224.2 L 388.9,222.3 L 385.2,220.4 L 388.0,217.3 L 390.3,205.3 L 388.6,193.2 L 382.6,188.7 L 376.7,187.6 L 371.2,190.5 L 387.1,177.7 L 394.4,166.5 L 401.5,150.2 L 400.2,147.9 L 403.7,145.2 L 406.5,135.3 L 405.1,132.5 L 407.4,131.5 L 407.4,124.2 L 409.7,121.4 L 410.2,124.5 L 411.8,121.5 L 411.5,125.2 L 414.0,122.9 L 413.4,127.1 L 417.7,125.3 L 416.7,129.2 L 419.0,125.7 L 418.5,132.4 L 422.0,126.4 L 422.3,129.0 L 426.0,127.3 L 424.8,130.4 L 428.4,130.6 L 426.0,133.7 L 429.1,132.6 L 432.8,144.7 L 437.1,143.1 L 437.6,145.9 L 442.7,140.2 L 458.5,148.1 L 467.8,148.5 L 466.0,155.8 L 462.3,159.7 L 458.2,159.9 L 451.4,172.5 L 454.1,187.8 L 449.9,194.8 L 450.2,201.9 L 453.6,206.4 L 452.4,211.8 L 445.4,214.6 L 441.3,212.2 L 436.9,213.2 L 427.8,223.5 L 417.1,227.9 L 409.6,248.3 L 412.5,256.9 L 410.3,270.0 L 404.4,268.5 L 400.5,261.4 L 401.7,257.3 L 395.1,249.5 Z M 423.8,126.2 L 425.6,126.0 L 423.7,126.4 Z M 414.0,125.5 L 415.0,122.6 L 414.1,125.7 Z", "cx": 417.6, "cy": 175.7}, {"sigla": "MG", "name": "Minas Gerais", "d": "M 434.4,335.4 L 440.4,336.9 L 439.3,342.5 L 444.0,344.8 L 448.8,342.1 L 463.9,351.0 L 468.0,349.6 L 474.1,356.1 L 474.5,360.3 L 483.3,359.0 L 489.8,361.2 L 495.0,366.4 L 489.0,374.5 L 489.1,379.6 L 486.3,379.2 L 485.1,382.3 L 484.3,388.0 L 489.9,393.6 L 489.9,397.7 L 480.7,397.5 L 482.3,400.7 L 477.6,401.6 L 476.6,405.5 L 478.8,405.8 L 480.3,411.8 L 475.7,412.5 L 478.9,414.6 L 479.9,422.8 L 473.8,435.2 L 468.6,435.5 L 467.3,437.6 L 467.8,443.1 L 463.1,448.6 L 460.0,459.7 L 461.4,461.4 L 450.4,467.9 L 440.6,467.4 L 417.9,477.6 L 413.5,476.3 L 412.4,481.2 L 404.7,482.0 L 403.9,475.7 L 399.5,471.8 L 402.3,456.8 L 395.4,456.3 L 392.3,447.1 L 394.3,443.2 L 389.1,431.3 L 383.6,431.8 L 383.2,434.1 L 378.3,432.5 L 378.3,434.4 L 370.2,434.7 L 369.2,439.5 L 367.4,434.5 L 364.4,436.9 L 364.1,431.3 L 347.3,428.2 L 339.9,433.4 L 339.3,427.5 L 349.5,409.8 L 360.3,406.4 L 362.3,409.0 L 368.6,403.2 L 378.0,403.6 L 382.3,406.5 L 391.7,399.0 L 391.9,391.5 L 388.1,387.8 L 393.8,380.9 L 389.3,372.3 L 391.4,364.8 L 398.3,362.4 L 396.6,348.8 L 402.4,348.9 L 402.5,343.0 L 405.5,346.7 L 409.5,346.3 L 408.4,352.3 L 434.4,335.2 Z", "cx": 425.6, "cy": 406.1}, {"sigla": "MS", "name": "Mato Grosso do Sul", "d": "M 299.9,396.7 L 311.1,398.7 L 311.1,403.8 L 315.5,403.9 L 313.3,408.9 L 319.8,409.7 L 338.7,420.2 L 341.0,424.7 L 339.0,436.2 L 331.6,443.0 L 325.0,461.4 L 319.2,470.1 L 303.9,482.5 L 301.4,490.1 L 298.4,491.7 L 296.7,500.5 L 294.2,502.4 L 288.8,497.8 L 283.4,501.0 L 278.5,500.6 L 275.6,477.2 L 272.5,471.2 L 267.4,471.1 L 264.9,467.6 L 258.9,471.5 L 242.6,467.9 L 245.1,448.7 L 240.2,434.9 L 244.5,431.5 L 240.7,427.8 L 250.1,401.9 L 245.4,390.6 L 250.1,396.4 L 255.1,394.2 L 260.1,386.4 L 268.8,384.0 L 282.4,392.2 L 290.1,389.1 L 293.7,392.4 L 297.1,391.6 L 302.2,385.1 L 302.3,392.4 L 299.7,393.8 L 299.8,396.6 Z", "cx": 279.0, "cy": 437.7}, {"sigla": "MT", "name": "Mato Grosso", "d": "M 209.7,319.8 L 213.7,308.5 L 217.8,304.0 L 213.2,295.8 L 215.0,284.0 L 193.1,281.8 L 194.1,259.6 L 192.0,253.7 L 194.3,248.1 L 192.7,246.2 L 236.7,246.1 L 237.2,230.7 L 240.6,222.7 L 247.5,236.7 L 248.1,245.4 L 253.5,248.1 L 259.8,256.1 L 350.7,263.2 L 343.5,289.3 L 344.0,308.5 L 346.9,312.9 L 341.7,326.9 L 338.8,346.3 L 332.5,349.0 L 327.7,361.6 L 322.5,362.7 L 316.5,369.6 L 317.2,373.7 L 311.9,378.9 L 309.1,386.3 L 311.1,398.7 L 298.9,396.8 L 302.3,392.4 L 302.2,385.1 L 297.1,391.6 L 293.3,392.3 L 290.1,389.1 L 282.4,392.2 L 268.8,384.0 L 260.1,386.4 L 255.8,393.5 L 250.1,396.4 L 246.3,390.1 L 241.9,389.5 L 237.0,384.3 L 235.9,376.9 L 238.1,368.9 L 212.3,368.9 L 211.4,355.7 L 206.8,349.7 L 211.3,349.5 L 207.9,334.5 L 209.4,331.1 L 204.7,326.1 L 209.7,319.9 Z", "cx": 263.3, "cy": 339.6}, {"sigla": "PA", "name": "Pará", "d": "M 396.3,116.4 L 399.1,119.4 L 400.6,117.2 L 400.1,120.3 L 403.6,118.4 L 403.6,121.7 L 406.9,118.9 L 405.7,123.4 L 408.5,120.9 L 407.4,131.5 L 405.0,132.9 L 405.8,138.5 L 403.5,140.5 L 403.7,145.2 L 400.2,147.9 L 401.5,150.2 L 394.4,166.5 L 387.5,177.1 L 371.2,190.5 L 376.3,191.2 L 379.8,194.6 L 377.6,197.0 L 378.5,200.1 L 375.6,204.0 L 376.4,207.1 L 364.8,216.0 L 365.2,220.9 L 362.4,226.1 L 365.7,230.1 L 364.9,236.1 L 353.3,254.2 L 350.7,263.2 L 259.8,256.1 L 253.5,248.1 L 248.1,245.4 L 247.5,236.7 L 235.9,212.3 L 264.9,141.1 L 269.0,137.1 L 260.9,140.1 L 254.1,132.2 L 243.1,127.1 L 242.3,122.3 L 240.3,124.3 L 236.5,121.1 L 230.4,110.1 L 230.1,84.9 L 235.6,84.3 L 235.4,81.1 L 238.0,79.0 L 242.5,80.5 L 242.7,78.0 L 249.0,77.3 L 252.2,72.5 L 270.6,75.2 L 271.7,71.9 L 268.4,68.3 L 270.8,64.0 L 278.9,65.8 L 284.2,63.0 L 287.0,67.1 L 287.8,76.1 L 293.9,76.7 L 297.1,80.8 L 306.2,84.7 L 306.4,89.7 L 310.6,93.6 L 309.7,98.5 L 313.0,106.8 L 318.7,113.9 L 320.0,121.3 L 324.6,124.3 L 329.1,122.9 L 336.9,106.5 L 351.7,93.3 L 353.0,99.2 L 358.3,98.7 L 362.2,104.4 L 368.7,108.2 L 375.6,108.5 L 375.1,112.6 L 381.7,115.9 L 385.8,113.2 L 388.8,116.9 L 389.4,114.0 L 393.3,115.2 L 393.2,117.1 L 396.2,116.2 Z", "cx": 324.2, "cy": 119.9}, {"sigla": "PB", "name": "Paraíba", "d": "M 531.6,201.5 L 532.6,203.5 L 528.0,212.4 L 530.7,212.1 L 531.5,214.3 L 537.1,212.8 L 538.7,216.8 L 541.6,214.2 L 543.2,205.7 L 549.0,208.9 L 563.0,208.8 L 565.0,226.0 L 561.5,223.5 L 555.9,224.3 L 555.2,227.7 L 542.8,230.3 L 534.9,238.2 L 532.1,232.6 L 529.8,232.9 L 535.0,224.9 L 531.5,221.6 L 519.8,230.5 L 517.0,230.6 L 515.9,228.1 L 512.6,229.3 L 510.8,227.0 L 513.4,221.9 L 510.2,215.7 L 512.8,206.8 L 519.2,209.4 L 524.3,204.1 L 531.5,201.4 Z", "cx": 534.7, "cy": 219.1}, {"sigla": "PE", "name": "Pernambuco", "d": "M 532.3,222.1 L 535.0,224.9 L 529.8,232.9 L 532.1,232.6 L 534.8,238.2 L 542.8,230.3 L 555.2,227.7 L 555.9,224.3 L 561.5,223.5 L 564.8,225.9 L 564.9,233.4 L 560.5,248.1 L 550.1,247.1 L 545.5,252.3 L 535.4,255.7 L 524.2,247.2 L 517.5,254.8 L 514.2,247.1 L 511.9,249.3 L 501.6,241.9 L 494.5,246.7 L 493.6,250.3 L 489.2,250.8 L 488.0,255.6 L 482.2,256.9 L 483.5,251.7 L 477.5,244.7 L 474.1,244.7 L 484.8,235.5 L 483.2,224.5 L 497.7,222.1 L 505.7,231.0 L 510.8,227.2 L 519.8,230.5 L 527.8,223.0 L 532.0,221.9 Z", "cx": 524.0, "cy": 238.5}, {"sigla": "PI", "name": "Piauí", "d": "M 468.8,149.6 L 475.5,152.8 L 473.2,158.6 L 477.8,171.5 L 475.6,182.8 L 480.1,187.6 L 482.8,211.5 L 487.9,213.9 L 485.4,223.5 L 483.1,224.7 L 484.8,235.5 L 467.4,253.4 L 461.9,254.1 L 454.5,259.5 L 451.5,256.0 L 443.3,254.6 L 439.4,258.4 L 442.2,263.2 L 438.5,272.7 L 435.3,276.2 L 429.1,276.0 L 424.4,280.9 L 418.4,277.7 L 415.2,267.5 L 410.2,269.9 L 412.5,256.9 L 410.1,246.5 L 417.9,227.0 L 427.8,223.5 L 436.9,213.2 L 441.3,212.2 L 445.4,214.6 L 452.4,211.8 L 453.6,206.4 L 450.2,201.9 L 449.9,194.8 L 454.1,187.8 L 451.4,172.5 L 458.2,159.9 L 462.3,159.7 L 468.7,149.6 Z", "cx": 449.7, "cy": 219.1}, {"sigla": "PR", "name": "Paraná", "d": "M 325.1,475.6 L 336.3,477.9 L 343.5,483.0 L 354.0,481.9 L 358.7,487.4 L 359.4,498.9 L 365.0,507.2 L 363.5,513.0 L 373.6,513.0 L 373.9,520.2 L 378.2,518.4 L 379.1,522.3 L 381.4,522.8 L 373.5,536.1 L 365.4,536.5 L 360.0,540.8 L 354.7,536.7 L 349.1,538.9 L 345.9,536.6 L 343.9,540.9 L 337.0,541.8 L 336.8,547.5 L 334.2,549.4 L 332.8,546.9 L 303.4,541.2 L 299.7,529.8 L 296.8,529.7 L 296.8,527.5 L 292.2,531.1 L 289.9,529.3 L 294.6,507.6 L 293.4,503.4 L 296.7,500.5 L 298.4,491.7 L 301.4,490.1 L 304.5,481.7 L 312.4,476.2 L 323.0,478.0 L 324.8,475.4 Z", "cx": 337.3, "cy": 520.7}, {"sigla": "RJ", "name": "Rio de Janeiro", "d": "M 430.2,488.8 L 427.2,490.1 L 425.2,488.0 L 426.3,483.3 L 433.6,480.7 L 435.1,478.0 L 428.5,476.9 L 426.3,473.0 L 440.6,467.4 L 450.4,467.9 L 461.4,461.4 L 460.0,459.7 L 463.1,448.6 L 466.9,445.1 L 469.2,446.9 L 469.1,451.2 L 479.7,454.3 L 479.3,466.4 L 465.6,475.7 L 467.1,479.4 L 465.0,483.6 L 450.5,483.4 L 450.1,478.0 L 447.2,480.2 L 449.1,483.0 L 443.6,485.0 L 439.6,482.0 L 434.8,484.6 L 431.6,482.6 L 427.7,485.1 L 427.4,487.7 L 430.2,488.7 Z M 434.1,485.2 L 436.1,486.6 L 432.7,487.6 L 434.0,485.2 Z M 439.7,484.7 L 437.2,485.3 L 439.7,484.6 Z", "cx": 447.1, "cy": 474.0}, {"sigla": "RN", "name": "Rio Grande do Norte", "d": "M 532.6,183.8 L 555.8,187.4 L 562.9,207.4 L 560.2,210.0 L 545.2,208.0 L 543.2,205.7 L 541.6,214.2 L 538.7,216.8 L 537.1,212.8 L 531.5,214.3 L 530.7,212.1 L 528.0,212.4 L 532.3,201.7 L 524.3,204.1 L 519.2,209.4 L 512.8,206.6 L 514.6,202.3 L 518.6,200.1 L 525.8,183.7 L 531.3,182.2 L 532.4,183.8 Z", "cx": 538.3, "cy": 200.6}, {"sigla": "RO", "name": "Rondônia", "d": "M 124.8,263.7 L 120.0,262.7 L 125.5,256.1 L 131.6,256.2 L 134.1,259.0 L 141.7,253.7 L 143.8,256.5 L 147.3,249.4 L 156.9,248.8 L 159.8,238.6 L 162.2,238.5 L 164.3,232.8 L 176.5,234.0 L 185.1,246.3 L 188.2,247.5 L 190.9,244.4 L 194.3,248.1 L 192.0,253.7 L 194.1,259.6 L 193.1,281.8 L 215.0,284.0 L 213.2,295.8 L 217.8,304.0 L 213.7,308.5 L 209.3,322.3 L 204.7,326.3 L 200.2,322.8 L 189.1,323.9 L 184.5,316.7 L 176.0,315.0 L 170.8,308.5 L 168.8,309.6 L 162.0,305.4 L 159.7,307.1 L 153.2,305.6 L 152.0,302.1 L 144.7,298.4 L 143.9,293.6 L 141.5,293.6 L 141.6,281.8 L 139.1,273.6 L 141.1,269.3 L 140.2,261.2 L 137.4,263.2 L 134.3,261.4 L 124.9,263.6 Z", "cx": 170.9, "cy": 286.6}, {"sigla": "RR", "name": "Roraima", "d": "M 215.8,54.1 L 214.8,61.5 L 218.6,68.1 L 218.1,74.8 L 225.2,82.4 L 230.2,84.4 L 230.1,100.4 L 214.2,100.4 L 209.1,112.8 L 210.5,116.0 L 207.3,118.6 L 204.2,118.4 L 199.6,112.6 L 194.4,115.1 L 192.0,125.5 L 194.2,129.9 L 188.3,127.0 L 179.8,116.9 L 182.8,115.0 L 184.2,109.9 L 179.4,96.4 L 180.3,87.2 L 175.6,78.9 L 177.0,73.5 L 167.9,69.4 L 167.3,65.5 L 158.2,64.5 L 156.5,47.6 L 147.6,36.3 L 151.2,38.8 L 156.8,38.4 L 159.5,42.5 L 163.6,41.8 L 163.5,40.1 L 165.8,42.9 L 166.9,40.8 L 170.1,41.2 L 173.6,46.7 L 176.6,45.5 L 176.5,39.8 L 179.1,40.1 L 180.7,37.5 L 187.8,38.8 L 196.3,31.8 L 200.9,32.1 L 206.5,25.5 L 204.6,20.8 L 211.9,20.0 L 214.8,23.6 L 212.4,32.3 L 219.1,34.3 L 218.5,37.5 L 221.4,41.2 L 216.5,47.4 L 215.9,54.1 Z", "cx": 195.1, "cy": 58.1}, {"sigla": "RS", "name": "Rio Grande do Sul", "d": "M 325.4,638.6 L 322.4,643.7 L 324.6,649.7 L 317.5,667.4 L 306.3,680.0 L 304.6,677.4 L 306.1,668.6 L 308.5,667.7 L 310.4,661.6 L 312.3,660.5 L 313.5,663.5 L 315.6,663.0 L 317.4,649.3 L 311.0,659.0 L 306.5,657.6 L 302.0,648.4 L 290.1,636.4 L 281.0,632.7 L 276.2,624.7 L 270.2,629.3 L 270.1,623.9 L 259.1,611.1 L 255.4,610.8 L 253.4,614.6 L 247.5,612.7 L 264.6,592.1 L 272.1,579.0 L 274.7,580.1 L 273.5,576.9 L 283.8,569.9 L 286.8,564.0 L 294.3,562.5 L 299.9,556.7 L 303.3,558.4 L 307.0,556.1 L 307.8,558.3 L 311.4,555.9 L 312.2,558.4 L 320.0,558.4 L 325.8,560.4 L 327.6,563.8 L 331.2,563.3 L 340.9,571.9 L 345.3,579.7 L 357.1,580.9 L 358.1,583.8 L 354.9,585.6 L 354.3,592.9 L 351.5,595.3 L 353.3,597.2 L 352.3,595.5 L 354.6,594.4 L 357.9,596.7 L 343.1,629.8 L 324.9,649.6 L 324.8,643.3 L 328.1,644.1 L 333.9,639.5 L 334.1,636.7 L 336.5,636.6 L 337.6,629.0 L 344.1,623.1 L 343.7,616.0 L 345.9,618.1 L 345.5,612.8 L 340.9,617.3 L 335.8,609.2 L 335.8,614.6 L 338.6,616.3 L 336.3,617.8 L 335.8,623.1 L 334.5,621.4 L 333.8,629.4 L 331.4,632.8 L 327.0,633.7 L 325.5,638.6 Z", "cx": 309.1, "cy": 613.1}, {"sigla": "SC", "name": "Santa Catarina", "d": "M 302.1,546.5 L 303.2,541.0 L 308.2,540.9 L 310.8,543.5 L 315.8,542.6 L 327.8,547.3 L 332.8,546.9 L 334.2,549.4 L 336.8,547.5 L 337.0,541.8 L 343.9,540.9 L 345.9,536.6 L 349.1,538.9 L 354.7,536.7 L 360.0,540.8 L 365.4,536.5 L 373.4,536.1 L 374.8,540.7 L 372.1,548.8 L 373.2,556.5 L 375.2,557.0 L 373.1,558.9 L 371.4,581.7 L 357.9,596.7 L 354.4,594.4 L 352.3,595.5 L 353.3,597.2 L 351.5,595.3 L 354.4,592.9 L 354.9,585.6 L 358.1,583.9 L 357.1,580.9 L 345.3,579.7 L 338.8,569.5 L 323.7,559.4 L 312.2,558.4 L 311.8,555.9 L 307.8,558.3 L 307.0,556.1 L 305.3,558.1 L 300.6,557.6 L 302.8,553.4 L 302.2,546.5 Z M 376.0,561.5 L 373.6,568.2 L 376.0,561.4 Z", "cx": 342.9, "cy": 559.6}, {"sigla": "SE", "name": "Sergipe", "d": "M 521.4,258.1 L 535.2,265.6 L 543.2,273.9 L 536.7,277.9 L 530.2,289.3 L 525.4,291.3 L 521.1,288.4 L 517.5,280.0 L 517.9,277.3 L 523.4,277.0 L 524.5,271.1 L 520.9,264.4 L 521.0,258.1 Z", "cx": 526.8, "cy": 276.7}, {"sigla": "SP", "name": "São Paulo", "d": "M 407.6,498.7 L 407.0,501.0 L 404.2,500.6 L 396.4,506.1 L 380.3,524.3 L 381.4,522.8 L 379.1,522.3 L 378.2,518.4 L 373.6,519.7 L 373.6,513.0 L 363.5,513.0 L 365.0,507.2 L 359.4,498.9 L 358.7,487.4 L 354.0,481.9 L 343.5,483.0 L 336.3,477.9 L 324.8,475.3 L 323.0,478.0 L 317.9,476.1 L 310.9,477.7 L 325.0,461.4 L 327.7,451.4 L 335.2,438.0 L 347.3,428.2 L 364.1,431.3 L 364.4,436.9 L 367.4,434.5 L 369.2,439.5 L 370.2,434.7 L 378.3,434.4 L 378.3,432.5 L 383.2,434.1 L 383.6,431.8 L 389.1,431.3 L 394.3,443.2 L 392.3,447.1 L 395.4,456.3 L 402.3,456.8 L 399.5,471.8 L 403.9,475.7 L 404.7,482.0 L 412.4,481.2 L 413.5,476.3 L 417.9,477.6 L 426.1,473.3 L 428.5,476.9 L 434.8,477.3 L 433.6,480.7 L 426.3,483.3 L 425.0,487.7 L 427.3,490.1 L 424.7,489.5 L 417.8,494.5 L 417.8,498.0 L 411.7,496.9 L 407.5,498.7 Z M 419.0,499.7 L 417.0,499.7 L 418.8,496.3 L 419.0,499.6 Z", "cx": 387.0, "cy": 480.6}, {"sigla": "TO", "name": "Tocantins", "d": "M 395.1,249.2 L 401.7,257.3 L 400.5,261.4 L 404.4,268.5 L 412.4,270.1 L 413.7,268.5 L 400.9,286.8 L 402.8,290.5 L 408.4,292.4 L 405.1,292.4 L 404.3,296.3 L 407.1,296.9 L 404.0,298.8 L 404.6,303.9 L 407.4,306.3 L 405.3,314.0 L 407.8,313.6 L 404.5,314.7 L 403.7,311.9 L 403.2,314.4 L 399.1,314.3 L 389.7,319.6 L 386.8,316.5 L 386.2,322.5 L 380.8,318.7 L 379.4,319.9 L 379.7,317.3 L 375.5,319.6 L 374.6,316.9 L 373.5,320.1 L 372.8,315.1 L 369.8,311.6 L 368.1,314.1 L 366.1,311.4 L 362.6,319.3 L 349.8,312.2 L 351.9,304.9 L 347.0,312.2 L 345.2,311.9 L 343.5,289.5 L 345.5,276.5 L 353.1,254.6 L 364.9,236.1 L 365.7,230.1 L 362.4,226.1 L 365.2,220.9 L 364.8,216.0 L 376.4,207.1 L 375.6,204.0 L 378.5,200.1 L 377.6,197.0 L 379.8,194.6 L 376.3,191.2 L 371.2,190.5 L 376.7,187.6 L 382.6,188.7 L 388.6,193.2 L 390.3,205.3 L 388.0,217.3 L 385.2,220.4 L 388.9,222.3 L 387.4,224.2 L 395.0,234.1 L 401.1,231.6 L 403.0,234.3 L 402.3,238.0 L 398.3,239.7 L 395.1,249.1 Z", "cx": 381.2, "cy": 272.6}, {"sigla": "DF", "name": "Distrito Federal", "d": "M 391.3,365.1 L 377.8,365.4 L 378.9,356.2 L 389.8,356.2 L 391.2,365.1 Z", "cx": 386.7, "cy": 361.8}];
+
+// ── MAPA ─────────────────────────────────────────────────────────
+function buildMapa(){
+  const sh = APP.shows;
+
+  // Agregar por UF
+  const agg = {};
+  sh.forEach(s => {
+    const uf = (s.uf||'').toUpperCase().trim();
+    if(!uf) return;
+    if(!agg[uf]) agg[uf] = {count:0, total:0};
+    agg[uf].count++;
+    agg[uf].total += parseFloat(s.cache)||0;
+  });
+
+  function getColor(n) {
+    if(n===0) return '#1c2128';
+    if(n===1) return '#1e3a5f';
+    if(n===2) return '#1a4731';
+    if(n===3) return '#1d4a2e';
+    if(n===4) return '#2d6a4f';
+    return '#3fb950';
+  }
+
+  const sorted = Object.entries(agg).sort((a,b)=>b[1].count-a[1].count).slice(0,6);
+  const maxC = sorted[0]?.[1]?.count||1;
+
+  const UF_FULL = {CE:'Ceará',PI:'Piauí',MA:'Maranhão',AM:'Amazonas',BA:'Bahia',
+    PE:'Pernambuco',SP:'São Paulo',RJ:'Rio de Janeiro',RN:'R.G. Norte',
+    PB:'Paraíba',AL:'Alagoas',SE:'Sergipe',GO:'Goiás',MT:'M. Grosso',
+    MS:'M.G. Sul',PA:'Pará',AC:'Acre',AP:'Amapá',RR:'Roraima',
+    RO:'Rondônia',TO:'Tocantins',MG:'M. Gerais',ES:'Esp. Santo',
+    PR:'Paraná',SC:'S. Catarina',RS:'R.G. Sul',DF:'D. Federal'};
+
+  const totalShows = sh.length;
+  const totalUFs = Object.keys(agg).length;
+  const totalBruto = sh.reduce((t,s)=>t+(parseFloat(s.cache)||0),0);
+
+  const ranking = sorted.map(([uf,d],i)=>`
+    <div style="display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:0.5px solid var(--bd2)">
+      <span style="font-family:monospace;font-size:10px;color:var(--mt);min-width:18px;text-align:right">${String(i+1).padStart(2,'0')}</span>
+      <div style="flex:1">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="color:var(--tx)">${UF_FULL[uf]||uf}</span>
+          <span style="color:var(--mt);font-family:monospace">${d.count} show${d.count>1?'s':''}</span>
+        </div>
+        <div style="height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden">
+          <div style="height:100%;width:${(d.count/maxC*100).toFixed(0)}%;background:var(--gn);border-radius:2px"></div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  return `
+    <h2 style="font-family:var(--font-head);font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:14px">
+      Mapa <span style="color:var(--ac)">de Shows</span>
+    </h2>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+      ${[['Shows totais',totalShows,'var(--gn)'],['Estados',totalUFs,'var(--ac)'],['Receita bruta',R2(totalBruto),'var(--am)']].map(([l,v,c])=>`
+      <div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-val" style="color:${c};font-size:16px">${v}</div></div>`).join('')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start">
+
+      <div class="card" style="margin-bottom:0;padding:12px">
+        <svg id="mapa-svg" viewBox="20 40 660 680" style="width:100%;height:auto;display:block"></svg>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div class="card" style="margin-bottom:0">
+          <div class="stitle">Ranking por estado</div>
+          ${ranking.length===0?'<div style="color:var(--mt);font-size:12px">Cadastre shows com UF para ver o ranking.</div>':ranking}
+        </div>
+        <div class="card" style="margin-bottom:0">
+          <div class="stitle">Legenda</div>
+          ${[['Nenhum show','#1c2128'],['1 show','#1e3a5f'],['2 shows','#1a4731'],['3 shows','#1d4a2e'],['4 shows','#2d6a4f'],['5+ shows','#3fb950']].map(([l,c])=>`
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:12px;color:var(--mt)">
+            <div style="width:12px;height:12px;border-radius:2px;background:${c};flex-shrink:0"></div>${l}
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div id="mapa-tooltip" style="position:fixed;background:#161b22;border:1px solid var(--bd);border-radius:8px;padding:10px 14px;pointer-events:none;opacity:0;transition:opacity .12s;font-size:12px;min-width:160px;z-index:200;box-shadow:0 4px 20px rgba(0,0,0,.6)"></div>
+  `;
+}
+
+function renderMapaSVG(){
+  const svg = document.getElementById('mapa-svg');
+  if(!svg) return;
+  const tip = document.getElementById('mapa-tooltip');
+  const sh = APP.shows;
+
+  const agg = {};
+  sh.forEach(s => {
+    const uf = (s.uf||'').toUpperCase().trim();
+    if(!uf) return;
+    if(!agg[uf]) agg[uf] = {count:0, total:0};
+    agg[uf].count++;
+    agg[uf].total += parseFloat(s.cache)||0;
+  });
+
+  function getColor(n) {
+    if(n===0) return '#1c2128';
+    if(n===1) return '#1e3a5f';
+    if(n===2) return '#1a4731';
+    if(n===3) return '#1d4a2e';
+    if(n===4) return '#2d6a4f';
+    return '#3fb950';
+  }
+
+  const UF_FULL = {CE:'Ceará',PI:'Piauí',MA:'Maranhão',AM:'Amazonas',BA:'Bahia',
+    PE:'Pernambuco',SP:'São Paulo',RJ:'Rio de Janeiro',RN:'Rio Grande do Norte',
+    PB:'Paraíba',AL:'Alagoas',SE:'Sergipe',GO:'Goiás',MT:'Mato Grosso',
+    MS:'Mato Grosso do Sul',PA:'Pará',AC:'Acre',AP:'Amapá',RR:'Roraima',
+    RO:'Rondônia',TO:'Tocantins',MG:'Minas Gerais',ES:'Espírito Santo',
+    PR:'Paraná',SC:'Santa Catarina',RS:'Rio Grande do Sul',DF:'Distrito Federal'};
+
+  svg.innerHTML = '';
+
+  STATES_GEO.forEach(st => {
+    const data = agg[st.sigla] || {count:0, total:0};
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', st.d);
+    path.setAttribute('fill', getColor(data.count));
+    path.setAttribute('stroke','#21262d');
+    path.setAttribute('stroke-width','0.8');
+    path.style.cursor = 'pointer';
+    path.style.transition = 'filter .15s';
+
+    path.addEventListener('mousemove', e => {
+      tip.innerHTML = `
+        <div style="font-size:9px;letter-spacing:2px;color:var(--ac);font-family:monospace;margin-bottom:3px">${st.sigla}</div>
+        <div style="font-size:13px;font-weight:600;color:var(--tx);margin-bottom:7px">${UF_FULL[st.sigla]||st.name}</div>
+        <div style="display:flex;justify-content:space-between;gap:14px;font-family:monospace;font-size:11px;color:var(--mt)">
+          <span>Shows</span><strong style="color:var(--tx)">${data.count}</strong>
+        </div>
+        ${data.count>0?`<div style="display:flex;justify-content:space-between;gap:14px;font-family:monospace;font-size:11px;color:var(--mt);margin-top:3px">
+          <span>Cachê</span><strong style="color:var(--gn)">${R(data.total)}</strong>
+        </div>`:''}`; 
+      tip.style.opacity = '1';
+      tip.style.left = (e.clientX+14)+'px';
+      tip.style.top  = (e.clientY-10)+'px';
+    });
+    path.addEventListener('mouseleave', () => { tip.style.opacity='0'; });
+    path.addEventListener('mouseenter', () => { path.style.filter='brightness(1.4)'; });
+    path.addEventListener('mouseleave', () => { path.style.filter=''; tip.style.opacity='0'; });
+
+    svg.appendChild(path);
+
+    // Label
+    const label = document.createElementNS('http://www.w3.org/2000/svg','text');
+    label.setAttribute('x', st.cx);
+    label.setAttribute('y', st.cy);
+    label.setAttribute('text-anchor','middle');
+    label.setAttribute('dominant-baseline','middle');
+    label.setAttribute('font-family',"'DM Sans',sans-serif");
+    label.setAttribute('font-size','7');
+    label.setAttribute('fill','rgba(230,237,243,0.45)');
+    label.setAttribute('pointer-events','none');
+    label.textContent = st.sigla;
+    svg.appendChild(label);
+
+    // Badge se tem shows
+    if(data.count > 0) {
+      const circ = document.createElementNS('http://www.w3.org/2000/svg','circle');
+      circ.setAttribute('cx', st.cx);
+      circ.setAttribute('cy', st.cy-10);
+      circ.setAttribute('r','6');
+      circ.setAttribute('fill','rgba(63,185,80,0.9)');
+      circ.setAttribute('pointer-events','none');
+      svg.appendChild(circ);
+
+      const num = document.createElementNS('http://www.w3.org/2000/svg','text');
+      num.setAttribute('x', st.cx);
+      num.setAttribute('y', st.cy-10);
+      num.setAttribute('text-anchor','middle');
+      num.setAttribute('dominant-baseline','middle');
+      num.setAttribute('font-size','6.5');
+      num.setAttribute('font-weight','bold');
+      num.setAttribute('fill','#0d1117');
+      num.setAttribute('pointer-events','none');
+      num.textContent = data.count;
+      svg.appendChild(num);
+    }
+  });
 }
 
 (async()=>{
