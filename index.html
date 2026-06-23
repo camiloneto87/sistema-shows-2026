@@ -106,9 +106,9 @@ const sb=createClient(SB_URL,SB_KEY);
 const ISS=.05,NF=.19;
 const MESES=["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 const CATS=["Transporte","Hospedagem","Alimentação","Banda/Músicos","Técnico Som/Luz","Motorista","Produção","Figurino","Estúdio","Impostos","Contraprestação","Bancário","Outros"];
-const STATUS_LIST=["CONFIRMADO","SINAL PAGO","ABERTO","RECEBIDO","REAGENDADO","CANCELADO"];
+const STATUS_LIST=["CONFIRMADO","SINAL PAGO","ABERTO","RECEBIDO","REAGENDADO","CANCELADO","SEM CACHÊ"];
 const UFS=["AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA","PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO"];
-const PCORES={"RECEBIDO":["#14532d22","#4ade80","#166534"],"ABERTO":["#7f1d1d22","#f87171","#991b1b"],"CONFIRMADO":["#1e3a5f22","#60a5fa","#1e40af"],"SINAL PAGO":["#312e8122","#a78bfa","#4c1d95"],"CANCELADO":["#21262d","#6b7280","#374151"],"REAGENDADO":["#422006","#fbbf24","#92400e"]};
+const PCORES={"RECEBIDO":["#14532d22","#4ade80","#166534"],"ABERTO":["#7f1d1d22","#f87171","#991b1b"],"CONFIRMADO":["#1e3a5f22","#60a5fa","#1e40af"],"SINAL PAGO":["#312e8122","#a78bfa","#4c1d95"],"CANCELADO":["#21262d","#6b7280","#374151"],"REAGENDADO":["#422006","#fbbf24","#92400e"],"SEM CACHÊ":["#1c2128","#8b949e","#30363d"]};
 
 const SHOWS_PADRAO=[
   {show_id:"SHOW-001",data:"2026-04-15",local:"Barreira",uf:"CE",cache:150000,comissao:40000,custo:10688,sinal:0,status:"ABERTO",obs:""},
@@ -134,7 +134,7 @@ let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],modal:null
 const R=v=>'R$\u00a0'+Math.round(v||0).toLocaleString('pt-BR');
 const R2=v=>'R$\u00a0'+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0});
 const fd=d=>{if(!d)return'—';const[y,m,di]=d.split('-');return`${di}/${m}/${y}`;};
-const calcLiq=s=>(s.cache||0)*(1-ISS-NF)-(s.comissao||0)-(s.custo||0);
+const calcLiq=s=>(s.cache||0)-(s.iss_retido||0)-(s.comissao_ext||0)-(s.imposto_nf||0)-(s.custo||0);
 const pill=st=>{const[bg,c,b]=PCORES[st]||PCORES.CANCELADO;return`<span class="pill" style="background:${bg};color:${c};border:1px solid ${b}">${st}</span>`;};
 const newSid=()=>`SHOW-${String(Math.max(0,...APP.shows.map(s=>+(s.show_id||'0').split('-')[1]))+1).padStart(3,'0')}`;
 const newDid=()=>`DESP-${String(APP.desps.length+1).padStart(3,'0')}`;
@@ -147,7 +147,7 @@ async function carregarDados(){
 }
 async function salvarShow(form,id=null){
   APP.loading=true;render();
-  const dados={show_id:form.show_id,data:form.data,local:form.local,uf:form.uf,cache:+form.cache||0,comissao:+form.comissao||0,custo:+form.custo||0,sinal:+form.sinal||0,status:form.status,obs:form.obs||'',user_id:APP.user.id};
+  const dados={show_id:form.show_id,data:form.data,local:form.local,uf:form.uf,cache:+form.cache||0,iss_retido:+form.iss_retido||0,comissao_ext:+form.comissao_ext||0,imposto_nf:+form.imposto_nf||0,custo:+form.custo||0,sinal:+form.sinal||0,contrato:form.contrato||'',status:form.status,obs:form.obs||'',user_id:APP.user.id};
   let err;
   if(id){({error:err}=await sb.from('shows').update(dados).eq('id',id));}
   else{({error:err}=await sb.from('shows').insert(dados));}
@@ -395,6 +395,7 @@ function buildShows(){
       <span>📅 ${fd(s.data)}</span>
       ${s.cache>0?`<span style="color:var(--gn);font-weight:600">${R(s.cache)}</span>`:''}
       ${s.cache>0?`<span style="color:var(--ac)">Líq: ${R(calcLiq(s))}</span>`:''}
+      ${s.contrato?`<span style="color:var(--gn)">📄 ${s.contrato}</span>`:''}
       ${s.obs?`<span>💬 ${s.obs}</span>`:''}
     </div>
   </div>`).join('')}`;
@@ -445,8 +446,8 @@ function buildModal(){if(APP.modal.tipo==='show')return buildModalShow();if(APP.
 
 function buildModalShow(){
   const f=APP.modal.form,novo=APP.modal.novo;
-  const c=+(f.cache||0),com=+(f.comissao||0),cu=+(f.custo||0);
-  const i_=c*ISS,n_=c*NF,l_=c-i_-n_-com-cu;
+  const cache=+(f.cache||0),iss=+(f.iss_retido||0),com=+(f.comissao_ext||0),nf=+(f.imposto_nf||0),cu=+(f.custo||0);
+  const liq=cache-iss-com-nf-cu;
   return`<div class="overlay" id="overlay"><div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <span style="font-family:var(--font-head);font-size:16px;font-weight:700">${novo?'Novo show':'Editar show'}</span>
@@ -462,22 +463,22 @@ function buildModalShow(){
         <div><span class="lbl">Status *</span><select id="f-status">${STATUS_LIST.map(s=>`<option value="${s}"${f.status===s?' selected':''}>${s}</option>`).join('')}</select></div>
       </div>
       <div class="grid2">
-        <div><span class="lbl">Cachê bruto (R$)</span><input id="f-cache" type="number" value="${f.cache||''}" placeholder="0"></div>
-        <div><span class="lbl">Comissão (R$)</span><input id="f-comissao" type="number" value="${f.comissao||''}" placeholder="0"></div>
+        <div><span class="lbl">Cachê bruto (R$)</span><input id="f-cache" type="number" value="${f.cache||''}" placeholder="0" oninput="recalcLiq()"></div>
+        <div><span class="lbl">ISS retido (R$)</span><input id="f-iss" type="number" value="${f.iss_retido||''}" placeholder="0" oninput="recalcLiq()"></div>
       </div>
       <div class="grid2">
-        <div><span class="lbl">Custo variável (R$)</span><input id="f-custo" type="number" value="${f.custo||''}" placeholder="0"></div>
+        <div><span class="lbl">Comissão externa (R$)</span><input id="f-comissao" type="number" value="${f.comissao_ext||''}" placeholder="0" oninput="recalcLiq()"></div>
+        <div><span class="lbl">Imposto NF (R$)</span><input id="f-nf" type="number" value="${f.imposto_nf||''}" placeholder="0" oninput="recalcLiq()"></div>
+      </div>
+      <div class="grid2">
+        <div><span class="lbl">Custo variável (R$)</span><input id="f-custo" type="number" value="${f.custo||''}" placeholder="0" oninput="recalcLiq()"></div>
         <div><span class="lbl">Sinal recebido (R$)</span><input id="f-sinal" type="number" value="${f.sinal||''}" placeholder="0"></div>
       </div>
+      <div class="grid2">
+        <div><span class="lbl">Contrato</span><select id="f-contrato"><option value="">—</option><option value="OK"${f.contrato==='OK'?' selected':''}>OK</option><option value="PENDENTE"${f.contrato==='PENDENTE'?' selected':''}>PENDENTE</option></select></div>
+        <div><span class="lbl">Cachê líquido</span><div id="f-liq-preview" style="background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:8px 10px;font-family:monospace;font-size:14px;font-weight:700;color:${liq>=0?'var(--gn)':'var(--rd)'}">${R(liq)}</div></div>
+      </div>
       <div><span class="lbl">Observação</span><input id="f-obs" value="${f.obs||''}" placeholder="Ex: cachê parcelado..."></div>
-      ${c>0?`<div class="preview-box">
-        <div style="color:var(--mt);font-weight:600;margin-bottom:5px">Prévia do cálculo</div>
-        ${[['Cachê bruto',c,'var(--tx)'],['ISS (5%)',-i_,'var(--rd)'],['NF (19%)',-n_,'var(--rd)'],['Comissão',-com,'#f97316'],['Custo',-cu,'var(--am)']].map(([lb,v,cl])=>`
-        <div style="display:flex;justify-content:space-between;padding:2px 0"><span style="color:var(--mt)">${lb}</span><span style="color:${cl};font-family:monospace">${v<0?'−':''}${R(Math.abs(v))}</span></div>`).join('')}
-        <div style="border-top:1px solid var(--bd);margin-top:5px;padding-top:5px;display:flex;justify-content:space-between;font-weight:700">
-          <span>Cachê líquido</span><span style="color:${l_>=0?'var(--gn)':'var(--rd)'};font-family:monospace">${R(l_)}</span>
-        </div>
-      </div>`:''}
       <div style="display:flex;gap:8px;margin-top:4px">
         ${!novo?`<button class="btn-d" id="btn-del-show">Excluir</button>`:''}
         <div style="flex:1"></div>
@@ -486,6 +487,17 @@ function buildModalShow(){
       </div>
     </div>
   </div></div>`;
+}
+
+function recalcLiq(){
+  const c=+(document.getElementById('f-cache')?.value||0);
+  const i=+(document.getElementById('f-iss')?.value||0);
+  const com=+(document.getElementById('f-comissao')?.value||0);
+  const nf=+(document.getElementById('f-nf')?.value||0);
+  const cu=+(document.getElementById('f-custo')?.value||0);
+  const liq=c-i-com-nf-cu;
+  const el=document.getElementById('f-liq-preview');
+  if(el){el.textContent=R(liq);el.style.color=liq>=0?'var(--gn)':'var(--rd)';}
 }
 
 function buildModalDesp(){
@@ -586,8 +598,13 @@ function bindEvents(){
     const f=APP.modal.form;
     f.local=document.getElementById('f-local')?.value||'';f.uf=document.getElementById('f-uf')?.value||'CE';
     f.data=document.getElementById('f-data')?.value||'';f.status=document.getElementById('f-status')?.value||'CONFIRMADO';
-    f.cache=+(document.getElementById('f-cache')?.value||0);f.comissao=+(document.getElementById('f-comissao')?.value||0);
-    f.custo=+(document.getElementById('f-custo')?.value||0);f.sinal=+(document.getElementById('f-sinal')?.value||0);
+    f.cache=+(document.getElementById('f-cache')?.value||0);
+    f.iss_retido=+(document.getElementById('f-iss')?.value||0);
+    f.comissao_ext=+(document.getElementById('f-comissao')?.value||0);
+    f.imposto_nf=+(document.getElementById('f-nf')?.value||0);
+    f.custo=+(document.getElementById('f-custo')?.value||0);
+    f.sinal=+(document.getElementById('f-sinal')?.value||0);
+    f.contrato=document.getElementById('f-contrato')?.value||'';
     f.obs=document.getElementById('f-obs')?.value||'';
     if(!f.local||!f.data){toast('Preencha Local e Data.','err');return;}
     salvarShow(f,APP.modal.novo?null:APP.modal.form.id);
