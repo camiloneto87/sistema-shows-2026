@@ -525,8 +525,8 @@ function bindEvents(){
     APP.loading=false;
     if(error){toast('E-mail ou senha incorretos.','err');render();return;}
     APP.user=data.user;
-    const{data:p}=await sb.from('perfis').select('role').eq('id',data.user.id).single();
-    APP.role=p?.role||'viewer';
+    const{data:p}=await sb.from('perfis').select('perfil').eq('id',data.user.id).single();
+    APP.role=p?.perfil||'viewer';
     await carregarDados();render();
   };
   const bIC=document.getElementById('btn-ir-cadastro');
@@ -784,8 +784,8 @@ function renderMapaSVG(){
   const{data:{session}}=await sb.auth.getSession();
   if(session){
     APP.user=session.user;
-    const{data:p}=await sb.from('perfis').select('role').eq('id',session.user.id).single();
-    APP.role=p?.role||'viewer';
+    const{data:p}=await sb.from('perfis').select('perfil').eq('id',session.user.id).single();
+    APP.role=p?.perfil||'viewer';
     await carregarDados();
   }
   render();
