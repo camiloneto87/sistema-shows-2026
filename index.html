@@ -157,7 +157,7 @@ async function salvarShow(form,id=null){
 async function excluirShow(id){if(!confirm('Excluir este show?'))return;await sb.from('shows').delete().eq('id',id);toast('Excluído.');await carregarDados();APP.modal=null;render();}
 async function salvarDesp(form,id=null){
   APP.loading=true;render();
-  const dados={desp_id:form.desp_id,data:form.data,categoria:form.categoria,descricao:form.descricao||'',valor:+form.valor||0,show_ref:form.show_ref||'',user_id:APP.user.id};
+  const dados={desp_id:form.desp_id,data:form.data,categoria:form.categoria,descricao:form.descricao||'',valor:+form.valor||0,forma_pagamento:form.forma_pagamento||'',show_ref:form.show_ref||'',user_id:APP.user.id};
   let err;
   if(id){({error:err}=await sb.from('despesas').update(dados).eq('id',id));}
   else{({error:err}=await sb.from('despesas').insert(dados));}
@@ -502,6 +502,7 @@ function recalcLiq(){
 
 function buildModalDesp(){
   const f=APP.modal.form,novo=APP.modal.novo;
+  const FORMAS=['PIX','TED','Transferência Bancária','Dinheiro','Cartão de Crédito','Cartão de Débito','Boleto','Cheque','Outro'];
   return`<div class="overlay" id="overlay"><div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <span style="font-family:var(--font-head);font-size:16px;font-weight:700">${novo?'Nova despesa':'Editar despesa'}</span>
@@ -512,7 +513,10 @@ function buildModalDesp(){
         <div><span class="lbl">Data *</span><input id="f-data" type="date" value="${f.data||''}"></div>
         <div><span class="lbl">Valor R$ *</span><input id="f-valor" type="number" value="${f.valor||''}" placeholder="0"></div>
       </div>
-      <div><span class="lbl">Categoria *</span><select id="f-cat"><option value="">Selecione...</option>${CATS.map(c=>`<option value="${c}"${f.categoria===c?' selected':''}>${c}</option>`).join('')}</select></div>
+      <div class="grid2">
+        <div><span class="lbl">Categoria *</span><select id="f-cat"><option value="">Selecione...</option>${CATS.map(c=>`<option value="${c}"${f.categoria===c?' selected':''}>${c}</option>`).join('')}</select></div>
+        <div><span class="lbl">Forma de pagamento</span><select id="f-forma"><option value="">Selecione...</option>${FORMAS.map(fp=>`<option value="${fp}"${f.forma_pagamento===fp?' selected':''}>${fp}</option>`).join('')}</select></div>
+      </div>
       <div><span class="lbl">Descrição</span><input id="f-desc" value="${f.descricao||''}" placeholder="Ex: Combustível Fortaleza → Barreira"></div>
       <div><span class="lbl">Vincular a show</span><select id="f-show"><option value="">— Sem vínculo —</option>${APP.shows.map(s=>`<option value="${s.show_id}"${f.show_ref===s.show_id?' selected':''}>${s.show_id} · ${s.local} ${fd(s.data)}</option>`).join('')}</select></div>
       <div style="display:flex;gap:8px;margin-top:4px">
