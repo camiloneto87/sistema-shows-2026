@@ -419,22 +419,44 @@ function buildDesps(){
 function buildFluxo(){
   let ac=0;
   const rows=MESES.map((m,i)=>{
-    const ent=APP.shows.filter(s=>s.status==='RECEBIDO'&&s.data&&+s.data.split('-')[1]===i+1).reduce((t,s)=>t+(s.cache||0),0);
+    // Cachês de shows RECEBIDO no mês
+    const entShows=APP.shows.filter(s=>s.status==='RECEBIDO'&&s.data&&+s.data.split('-')[1]===i+1).reduce((t,s)=>t+(s.cache||0),0);
+    // Receitas extras no mês
+    const entRec=APP.receitas.filter(r=>r.data&&+r.data.split('-')[1]===i+1).reduce((t,r)=>t+(r.valor||0),0);
+    const ent=entShows+entRec;
     const sai=APP.desps.filter(d=>d.data&&+d.data.split('-')[1]===i+1).reduce((t,d)=>t+(d.valor||0),0);
-    const sal=ent-sai;ac+=sal;return{m,ent,sai,sal,ac};
+    const sal=ent-sai;ac+=sal;return{m,ent,entShows,entRec,sai,sal,ac};
   });
-  const tE=rows.reduce((t,r)=>t+r.ent,0),tS=rows.reduce((t,r)=>t+r.sai,0);
+  const tE=rows.reduce((t,r)=>t+r.ent,0);
+  const tShows=rows.reduce((t,r)=>t+r.entShows,0);
+  const tRec=rows.reduce((t,r)=>t+r.entRec,0);
+  const tS=rows.reduce((t,r)=>t+r.sai,0);
   return`
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
-    ${[['Entradas',R2(tE),'var(--gn)'],['Saídas',R2(tS),'var(--rd)'],['Saldo',R2(tE-tS),(tE-tS)>=0?'var(--gn)':'var(--rd)']].map(([l,v,c])=>`
-    <div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-val" style="color:${c};font-size:16px">${v}</div></div>`).join('')}
+  <h2 style="font-family:var(--font-head);font-size:20px;font-weight:800;letter-spacing:-.5px;margin-bottom:14px">Fluxo <span style="color:var(--ac)">de Caixa</span></h2>
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">
+    ${[['Total entradas',R2(tE),'var(--gn)'],['Cachês shows',R2(tShows),'var(--ac)'],['Receitas extras',R2(tRec),'#a78bfa'],['Saídas',R2(tS),'var(--rd)']].map(([l,v,c])=>`
+    <div class="kpi"><div class="kpi-label">${l}</div><div class="kpi-val" style="color:${c};font-size:15px">${v}</div></div>`).join('')}
+  </div>
+  <div class="kpi" style="margin-bottom:14px;border:1px solid ${(tE-tS)>=0?'rgba(63,185,80,.3)':'rgba(248,81,73,.3)'}">
+    <div class="kpi-label">Saldo final 2026</div>
+    <div class="kpi-val" style="color:${(tE-tS)>=0?'var(--gn)':'var(--rd)'};font-size:22px">${R2(tE-tS)}</div>
   </div>
   <div class="card" style="overflow-x:auto">
-    <div class="stitle">Fluxo mensal 2026</div>
-    <table><thead><tr><th>Mês</th><th style="text-align:right">Entradas</th><th style="text-align:right">Saídas</th><th style="text-align:right">Saldo</th><th style="text-align:right">Acumulado</th></tr></thead>
+    <div class="stitle">Detalhamento mensal</div>
+    <table><thead><tr>
+      <th>Mês</th>
+      <th style="text-align:right">Cachês</th>
+      <th style="text-align:right">Rec. extras</th>
+      <th style="text-align:right">Total entradas</th>
+      <th style="text-align:right">Saídas</th>
+      <th style="text-align:right">Saldo</th>
+      <th style="text-align:right">Acumulado</th>
+    </tr></thead>
     <tbody>${rows.map((r,i)=>`<tr>
       <td style="font-weight:500;font-family:var(--font-head)">${MESES[i]}</td>
-      <td style="text-align:right;color:${r.ent?'var(--gn)':'var(--mt)'};font-family:monospace">${r.ent?R(r.ent):'—'}</td>
+      <td style="text-align:right;color:${r.entShows?'var(--ac)':'var(--mt)'};font-family:monospace">${r.entShows?R(r.entShows):'—'}</td>
+      <td style="text-align:right;color:${r.entRec?'#a78bfa':'var(--mt)'};font-family:monospace">${r.entRec?R(r.entRec):'—'}</td>
+      <td style="text-align:right;color:${r.ent?'var(--gn)':'var(--mt)'};font-weight:600;font-family:monospace">${r.ent?R(r.ent):'—'}</td>
       <td style="text-align:right;color:${r.sai?'var(--rd)':'var(--mt)'};font-family:monospace">${r.sai?'−'+R(r.sai):'—'}</td>
       <td style="text-align:right;color:${r.sal>0?'var(--gn)':r.sal<0?'var(--rd)':'var(--mt)'};font-weight:600;font-family:monospace">${r.sal===0?'—':(r.sal<0?'−':'')+R(Math.abs(r.sal))}</td>
       <td style="text-align:right;color:${r.ac>=0?'var(--ac)':'var(--rd)'};font-weight:700;font-family:monospace">${R(r.ac)}</td>
