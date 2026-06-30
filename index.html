@@ -234,24 +234,29 @@ function buildNav(){
 }
 
 function buildDash(){
-  const sh=APP.shows,de=APP.desps;
+  const sh=APP.shows,de=APP.desps,rc=APP.receitas;
   const ativos=sh.filter(s=>s.status!=='CANCELADO');
-  const rec=sh.filter(s=>s.status==='RECEBIDO');
-  const abe=sh.filter(s=>s.status==='ABERTO');
+  const recebidos=sh.filter(s=>s.status==='RECEBIDO');
+  const abertos=sh.filter(s=>['ABERTO','CONFIRMADO','SINAL PAGO'].includes(s.status));
   const con=sh.filter(s=>s.status==='CONFIRMADO');
-  const sumC=a=>a.reduce((t,s)=>t+(s.cache||0),0);
-  const tB=sumC(ativos),tR=sumC(rec),tA=sumC(abe);
-  const tL=ativos.filter(s=>s.cache>0).reduce((t,s)=>t+calcLiq(s),0);
+  // KPIs
+  const tRecBruta=rc.reduce((t,r)=>t+(r.valor||0),0);
+  const tLiq=ativos.filter(s=>s.cache>0).reduce((t,s)=>t+calcLiq(s),0);
+  const tRecebido=recebidos.reduce((t,s)=>t+(s.cache||0),0);
+  const tAberto=abertos.reduce((t,s)=>t+(s.cache||0),0);
   const tD=de.reduce((t,d)=>t+(d.valor||0),0);
-  const tISS=ativos.reduce((t,s)=>t+(s.cache||0)*ISS,0);
-  const tNF=ativos.reduce((t,s)=>t+(s.cache||0)*NF,0);
-  const tCom=ativos.reduce((t,s)=>t+(s.comissao||0),0);
-  const tCu=ativos.reduce((t,s)=>t+(s.custo||0),0);
-  const rank=[...sh].filter(s=>s.cache>0&&s.status!=='CANCELADO').map(s=>({...s,l:calcLiq(s)})).sort((a,b)=>b.l-a.l).slice(0,5);
-  const maxL=rank[0]?.l||1;
-  const mensal=MESES.map((m,i)=>{const ms=sh.filter(s=>s.data&&+s.data.split('-')[1]===i+1&&s.status!=='CANCELADO');return{m,v:ms.reduce((t,s)=>t+(s.cache||0),0),n:ms.length};});
+  const tSaldo=tRecBruta-tD;
+  // Top shows por cachê bruto
+  const rank=[...sh].filter(s=>s.cache>0&&s.status!=='CANCELADO').sort((a,b)=>b.cache-a.cache).slice(0,5);
+  const maxC=rank[0]?.cache||1;
+  // Receita mensal da aba receitas
+  const mensal=MESES.map((m,i)=>{
+    const v=rc.filter(r=>r.data&&+r.data.split('-')[1]===i+1).reduce((t,r)=>t+(r.valor||0),0);
+    const n=rc.filter(r=>r.data&&+r.data.split('-')[1]===i+1).length;
+    return{m,v,n};
+  });
   const porCat=CATS.map(c=>({c,v:de.filter(d=>d.categoria===c).reduce((t,d)=>t+(d.valor||0),0)})).filter(x=>x.v>0).sort((a,b)=>b.v-a.v);
-  const margem=tB>0?Math.round(tL/tB*100):0;
+  const margem=tLiq>0&&tRecBruta>0?Math.round(tLiq/tRecBruta*100):0;
 
   return`
   ${sh.length===0&&isAdmin()?`<div class="card" style="text-align:center;padding:24px;margin-bottom:12px">
@@ -270,46 +275,33 @@ function buildDash(){
 
   <!-- KPIs -->
   <div class="kpi-grid">
-    ${[[`Receita bruta`,R2(tB),`${ativos.filter(s=>s.cache>0).length} shows c/ cachê`,'var(--gn)',100],
-       [`Cachê líquido`,R2(tL),'Após ISS + NF + comissão','var(--ac)',tB?tL/tB*100:0],
-       [`Recebido`,R2(tR),`${rec.length} shows`,'var(--gn)',tB?tR/tB*100:0],
-       [`Em aberto`,R2(tA),`${abe.length} shows`,'var(--rd)',tB?tA/tB*100:0],
-       [`Saldo real`,R2(tR-tD),'Recebido − Despesas',(tR-tD)>=0?'var(--gn)':'var(--rd)',null],
+    ${[[`Receita bruta`,R2(tRecBruta),`${rc.length} lançamento${rc.length!==1?'s':''}`,'var(--gn)',null],
+       [`Cachê líquido`,R2(tLiq),'Cachê dos shows','var(--ac)',null],
+       [`Recebido`,R2(tRecebido),`${recebidos.length} show${recebidos.length!==1?'s':''}`,'var(--gn)',null],
+       [`Em aberto`,R2(tAberto),`${abertos.length} show${abertos.length!==1?'s':''}`,'var(--rd)',null],
+       [`Saldo real`,R2(tSaldo),'Receitas − Despesas',tSaldo>=0?'var(--gn)':'var(--rd)',null],
     ].map(([l,v,s,c,p])=>`
     <div class="kpi">
       <div class="kpi-label">${l}</div>
       <div class="kpi-val" style="color:${c}">${v}</div>
       <div class="kpi-sub">${s}</div>
-      ${p!=null?`<div class="bar-track"><div style="height:100%;width:${Math.min(p,100).toFixed(0)}%;background:${c};border-radius:2px;transition:width 1s"></div></div>`:''}
     </div>`).join('')}
   </div>
 
-  <!-- Status + Deduções -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-    <div class="card" style="margin-bottom:0">
-      <div class="stitle">Status dos shows</div>
-      <div class="st-grid">
-        ${[['REC.',rec.length,'var(--gn)'],['ABERTO',abe.length,'var(--rd)'],['CONF.',con.length,'var(--ac)'],
-           ['SINAL',sh.filter(s=>s.status==='SINAL PAGO').length,'var(--pu)'],
-           ['CANC.',sh.filter(s=>s.status==='CANCELADO').length,'var(--mt)'],['TOTAL',sh.length,'var(--tx)']
-        ].map(([l,n,c])=>`<div class="st-card"><div class="st-num" style="color:${c}">${n}</div><div class="st-lbl">${l}</div></div>`).join('')}
-      </div>
-    </div>
-    <div class="card" style="margin-bottom:0">
-      <div class="stitle">Deduções</div>
-      ${[['ISS (5%)',tISS,'var(--rd)'],['NF (19%)',tNF,'var(--rd)'],['Comissão',tCom,'#f97316'],['Custo show',tCu,'var(--am)']].map(([l,v,c])=>`
-      <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:0.5px solid var(--bd2);font-size:12px">
-        <span style="color:var(--mt)">${l}</span><span style="color:${c};font-weight:600;font-family:monospace">−${R(v)}</span>
-      </div>`).join('')}
-      <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;font-weight:700">
-        <span>Total deduzido</span><span style="color:var(--rd);font-family:monospace">−${R(tISS+tNF+tCom+tCu)}</span>
-      </div>
+  <!-- Status dos shows -->
+  <div class="card" style="margin-bottom:10px">
+    <div class="stitle">Status dos shows</div>
+    <div class="st-grid">
+      ${[['REC.',recebidos.length,'var(--gn)'],['ABERTO',sh.filter(s=>s.status==='ABERTO').length,'var(--rd)'],['CONF.',con.length,'var(--ac)'],
+         ['SINAL',sh.filter(s=>s.status==='SINAL PAGO').length,'var(--pu)'],
+         ['CANC.',sh.filter(s=>s.status==='CANCELADO').length,'var(--mt)'],['TOTAL',sh.length,'var(--tx)']
+      ].map(([l,n,c])=>`<div class="st-card"><div class="st-num" style="color:${c}">${n}</div><div class="st-lbl">${l}</div></div>`).join('')}
     </div>
   </div>
 
   <!-- Gráfico Chart.js -->
   <div class="card">
-    <div class="stitle">Receita bruta mensal (R$)</div>
+    <div class="stitle">Receitas mensais (R$)</div>
     <div style="height:160px"><canvas id="chartMensal"></canvas></div>
   </div>
 
@@ -321,23 +313,23 @@ function buildDash(){
       <div class="mes-card" style="${x.v>0?'border-color:rgba(56,189,248,.15)':''}">
         <div class="mes-nome">${x.m}</div>
         <div class="mes-val" style="color:${x.v>0?'var(--ac)':'var(--mt)'}">${x.v?'R$'+(x.v/1000).toFixed(0)+'K':'—'}</div>
-        <div style="font-size:9px;color:var(--mt);margin-top:2px">${x.n} show${x.n!==1?'s':''}</div>
+        <div style="font-size:9px;color:var(--mt);margin-top:2px">${x.n} lançamento${x.n!==1?'s':''}</div>
       </div>`).join('')}
     </div>
   </div>
 
   <!-- Ranking top 5 -->
   <div class="card">
-    <div class="stitle">🏆 Top 5 shows — cachê líquido</div>
+    <div class="stitle">🏆 Top 5 shows — cachê bruto</div>
     ${rank.length===0?`<div style="color:var(--mt);font-size:13px;text-align:center;padding:12px">Cadastre cachês nos shows para ver o ranking.</div>`:
     rank.map((s,i)=>`
     <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:${i<rank.length-1?'0.5px solid var(--bd2)':'none'}">
       <span style="font-size:18px;min-width:26px;text-align:center">${['🥇','🥈','🥉','4°','5°'][i]}</span>
       <div style="flex:1;min-width:0">
         <div style="font-size:13px;font-weight:500;font-family:var(--font-body);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.local} — ${s.uf}</div>
-        <div class="rank-bar-wrap"><div class="rank-bar-fill" style="width:${(s.l/maxL*100).toFixed(0)}%"></div></div>
+        <div class="rank-bar-wrap"><div class="rank-bar-fill" style="width:${(s.cache/maxC*100).toFixed(0)}%"></div></div>
       </div>
-      <span style="font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--gn);white-space:nowrap">${R(s.l)}</span>
+      <span style="font-family:var(--font-head);font-size:14px;font-weight:700;color:var(--gn);white-space:nowrap">${R(s.cache)}</span>
     </div>`).join('')}
   </div>
 
@@ -359,8 +351,8 @@ function drawChart(){
   const ctx=document.getElementById('chartMensal');
   if(!ctx)return;
   if(APP.chart){APP.chart.destroy();APP.chart=null;}
-  const sh=APP.shows;
-  const data=MESES.map((m,i)=>sh.filter(s=>s.data&&+s.data.split('-')[1]===i+1&&s.status!=='CANCELADO').reduce((t,s)=>t+(s.cache||0),0));
+  const rc=APP.receitas;
+  const data=MESES.map((m,i)=>rc.filter(r=>r.data&&+r.data.split('-')[1]===i+1).reduce((t,r)=>t+(r.valor||0),0));
   APP.chart=new Chart(ctx,{
     type:'bar',
     data:{labels:MESES,datasets:[{data,backgroundColor:data.map(v=>v>0?'rgba(31,111,235,.75)':'rgba(33,38,45,.6)'),borderRadius:5,borderSkipped:false}]},
