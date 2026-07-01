@@ -566,7 +566,7 @@ function bindEvents(){
   // FILTROS
   ['todos','CONFIRMADO','ABERTO','RECEBIDO','SINAL PAGO','CANCELADO'].forEach(f=>{const el=document.getElementById('fst-'+f.replace(' ','-'));if(el)el.onclick=()=>{APP.filtroSt=f;render();};});
   // ST-CARDS clicáveis no dashboard
-  ['RECEBIDO','ABERTO','CONFIRMADO','SINAL PAGO','CANCELADO','todos'].forEach(f=>{const el=document.getElementById('stcard-'+f.replace(' ','-'));if(el)el.onclick=()=>{APP.filtroSt=f;APP.tab='shows';render();}});});
+  ['RECEBIDO','ABERTO','CONFIRMADO','SINAL PAGO','CANCELADO','todos'].forEach(f=>{const el=document.getElementById('stcard-'+f.replace(' ','-'));if(el)el.onclick=()=>{APP.filtroSt=f;APP.tab='shows';render();};});
   // IMPORTAR
   const bI=document.getElementById('btn-importar');if(bI)bI.onclick=importarShowsPadrao;
   // ADD SHOW
