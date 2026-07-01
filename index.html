@@ -129,7 +129,7 @@ const SHOWS_PADRAO=[
   {show_id:"SHOW-016",data:"2026-12-25",local:"Fortaleza (Natal)",uf:"CE",cache:0,comissao:0,custo:0,sinal:0,status:"CONFIRMADO",obs:"Show de Natal"},
 ];
 
-let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],modal:null,filtroSt:'todos',loading:false,flash:'',chart:null,chartDesps:null,toastTimer:null};
+let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],docs:[],modal:null,filtroSt:'todos',loading:false,flash:'',chart:null,chartDesps:null,toastTimer:null};
 
 const R=v=>'R$\u00a0'+Math.round(v||0).toLocaleString('pt-BR');
 const R2=v=>'R$\u00a0'+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0});
@@ -142,8 +142,8 @@ const toast=(msg,tipo='ok')=>{APP.flash={msg,tipo};render();clearTimeout(APP.toa
 const isAdmin=()=>APP.role==='admin';
 
 async function carregarDados(){
-  const[{data:sh},{data:de},{data:rc}]=await Promise.all([sb.from('shows').select('*').order('data'),sb.from('despesas').select('*').order('data',{ascending:false}),sb.from('receitas').select('*').order('data',{ascending:false})]);
-  APP.shows=sh||[];APP.desps=de||[];APP.receitas=rc||[];
+  const[{data:sh},{data:de},{data:rc},{data:dc}]=await Promise.all([sb.from('shows').select('*').order('data'),sb.from('despesas').select('*').order('data',{ascending:false}),sb.from('receitas').select('*').order('data',{ascending:false}),sb.from('documentos').select('*').order('criado_em',{ascending:false})]);
+  APP.shows=sh||[];APP.desps=de||[];APP.receitas=rc||[];APP.docs=dc||[];
 }
 async function salvarShow(form,id=null){
   APP.loading=true;render();
@@ -177,7 +177,7 @@ function render(){document.getElementById('app').innerHTML=buildHTML();bindEvent
 
 function buildHTML(){
   if(!APP.user)return buildLogin();
-  return`${buildHeader()}${buildNav()}<div class="content">${APP.flash?`<div class="alert alert-${APP.flash.tipo==='err'?'err':'ok'}">${APP.flash.msg}</div>`:''}${APP.tab==='dash'?buildDash():APP.tab==='shows'?buildShows():APP.tab==='desps'?buildDesps():APP.tab==='receitas'?buildReceitas():APP.tab==='fluxo'?buildFluxo():buildMapa()}</div>${APP.modal?buildModal():''}`;
+  return`${buildHeader()}${buildNav()}<div class="content">${APP.flash?`<div class="alert alert-${APP.flash.tipo==='err'?'err':'ok'}">${APP.flash.msg}</div>`:''}${APP.tab==='dash'?buildDash():APP.tab==='shows'?buildShows():APP.tab==='desps'?buildDesps():APP.tab==='receitas'?buildReceitas():APP.tab==='fluxo'?buildFluxo():APP.tab==='docs'?buildDocs():buildMapa()}</div>${APP.modal?buildModal():''}`;
 }
 
 function buildLogin(){
@@ -227,7 +227,7 @@ function buildHeader(){
 }
 
 function buildNav(){
-  return`<div class="nav">${[['dash','📊','Dashboard'],['shows','🎤','Shows'],['desps','💸','Despesas'],['receitas','💰','Receitas'],['fluxo','📈','Fluxo'],['mapa','🗺️','Mapa']].map(([id,ic,lb])=>`
+  return`<div class="nav">${[['dash','📊','Dashboard'],['shows','🎤','Shows'],['desps','💸','Despesas'],['receitas','💰','Receitas'],['fluxo','📈','Fluxo'],['docs','📎','Docs'],['mapa','🗺️','Mapa']].map(([id,ic,lb])=>`
   <button class="nav-btn" id="nav-${id}" style="border-bottom:2px solid ${APP.tab===id?'var(--ac)':'transparent'};color:${APP.tab===id?'var(--ac)':'var(--mt)'}">
     <span style="font-size:18px">${ic}</span>${lb}
   </button>`).join('')}</div>`;
@@ -468,7 +468,7 @@ function buildFluxo(){
   </div>`;
 }
 
-function buildModal(){if(APP.modal.tipo==='show')return buildModalShow();if(APP.modal.tipo==='desp')return buildModalDesp();if(APP.modal.tipo==='receita')return buildModalReceita();return'';}
+function buildModal(){if(APP.modal.tipo==='show')return buildModalShow();if(APP.modal.tipo==='desp')return buildModalDesp();if(APP.modal.tipo==='receita')return buildModalReceita();if(APP.modal.tipo==='doc')return buildModalDoc();return '';}
 
 function buildModalShow(){
   const f=APP.modal.form,novo=APP.modal.novo;
@@ -560,13 +560,13 @@ function bindEvents(){
   };
   // SAIR
   const bS=document.getElementById('btn-sair');
-  if(bS)bS.onclick=async()=>{if(APP.chart){APP.chart.destroy();APP.chart=null;}await sb.auth.signOut();APP.user=null;APP.role=null;APP.shows=[];APP.desps=[];APP.receitas=[];APP.tab='dash';if(APP.chartDesps){APP.chartDesps.destroy();APP.chartDesps=null;}render();};
+  if(bS)bS.onclick=async()=>{if(APP.chart){APP.chart.destroy();APP.chart=null;}await sb.auth.signOut();APP.user=null;APP.role=null;APP.shows=[];APP.desps=[];APP.receitas=[];APP.docs=[];APP.tab='dash';if(APP.chartDesps){APP.chartDesps.destroy();APP.chartDesps=null;}render();};
   // NAV
-  ['dash','shows','desps','receitas','fluxo','mapa'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.onclick=()=>{APP.tab=t;render();};});
+  ['dash','shows','desps','receitas','fluxo','docs','mapa'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.onclick=()=>{APP.tab=t;render();};});
   // FILTROS
   ['todos','CONFIRMADO','ABERTO','RECEBIDO','SINAL PAGO','CANCELADO'].forEach(f=>{const el=document.getElementById('fst-'+f.replace(' ','-'));if(el)el.onclick=()=>{APP.filtroSt=f;render();};});
   // ST-CARDS clicáveis no dashboard
-  ['RECEBIDO','ABERTO','CONFIRMADO','SINAL PAGO','CANCELADO','todos'].forEach(f=>{const el=document.getElementById('stcard-'+f.replace(' ','-'));if(el)el.onclick=()=>{APP.filtroSt=f;APP.tab='shows';render();};});
+  ['RECEBIDO','ABERTO','CONFIRMADO','SINAL PAGO','CANCELADO','todos'].forEach(f=>{const el=document.getElementById('stcard-'+f.replace(' ','-'));if(el)el.onclick=()=>{APP.filtroSt=f;APP.tab='shows';render();}});});
   // IMPORTAR
   const bI=document.getElementById('btn-importar');if(bI)bI.onclick=importarShowsPadrao;
   // ADD SHOW
@@ -623,6 +623,25 @@ function bindEvents(){
     salvarDesp(f,APP.modal.novo?null:APP.modal.form.id);
   };
   const bDD=document.getElementById('btn-del-desp');if(bDD)bDD.onclick=()=>excluirDesp(APP.modal.form.id);
+  // ADD DOC
+  const bADoc=document.getElementById('btn-add-doc');if(bADoc)bADoc.onclick=()=>{APP.modal={tipo:'doc',novo:true,form:{}};render();};
+  // CLICK DOC
+  if(APP.docs)APP.docs.forEach(d=>{const el=document.getElementById('doc-'+d.id);if(el)el.onclick=()=>{if(isAdmin()){APP.modal={tipo:'doc',novo:false,form:{...d}};render();}};});
+  // SALVAR DOC
+  const bSDoc=document.getElementById('btn-salvar-doc');
+  if(bSDoc)bSDoc.onclick=()=>{
+    const f=APP.modal.form;
+    f.tipo=document.getElementById('f-tipo-doc')?.value||'';
+    f.descricao=document.getElementById('f-desc-doc')?.value||'';
+    f.show_ref=document.getElementById('f-show-doc')?.value||'';
+    f.link=document.getElementById('f-link-doc')?.value||'';
+    f.data=document.getElementById('f-data-doc')?.value||'';
+    const fileInput=document.getElementById('f-file-doc');
+    f._file=fileInput?.files?.[0]||null;
+    if(!f.tipo||!f.descricao){toast('Preencha Tipo e Descrição.','err');return;}
+    salvarDocumento(f,APP.modal.novo?null:APP.modal.form.id);
+  };
+  const bDelDoc=document.getElementById('btn-del-doc');if(bDelDoc)bDelDoc.onclick=()=>excluirDocumento(APP.modal.form.id,APP.modal.form.arquivo_path);
 }
 
 
@@ -925,6 +944,112 @@ function buildModalReceita(){
         <div style="flex:1"></div>
         <button class="btn-g" id="btn-fechar2">Cancelar</button>
         <button class="btn-p" id="btn-salvar-rec" ${APP.loading?'disabled':''}>${APP.loading?'Aguarde...':'Salvar'}</button>
+      </div>
+    </div>
+  </div></div>`;
+}
+
+
+// ── DOCUMENTOS ────────────────────────────────────────────────────
+async function salvarDocumento(form, id=null){
+  APP.loading=true;render();
+  let arquivo_path=form.arquivo_path||'';
+  if(form._file){
+    const path=`${Date.now()}_${form._file.name.replace(/[^a-zA-Z0-9._-]/g,'_')}`;
+    const{error:upErr}=await sb.storage.from('documentos').upload(path,form._file,{upsert:true});
+    if(upErr){toast('Erro no upload: '+upErr.message,'err');APP.loading=false;render();return;}
+    arquivo_path=path;
+  }
+  const dados={tipo:form.tipo||'',descricao:form.descricao||'',show_ref:form.show_ref||'',link:form.link||'',arquivo_path,data:form.data||null,user_id:APP.user.id};
+  let err;
+  if(id){({error:err}=await sb.from('documentos').update(dados).eq('id',id));}
+  else{({error:err}=await sb.from('documentos').insert(dados));}
+  if(err)toast('Erro: '+err.message,'err'); else toast('Documento salvo!');
+  await carregarDados();APP.loading=false;APP.modal=null;render();
+}
+async function excluirDocumento(id,arquivo_path){
+  if(!confirm('Excluir este documento?'))return;
+  if(arquivo_path){await sb.storage.from('documentos').remove([arquivo_path]);}
+  await sb.from('documentos').delete().eq('id',id);
+  toast('Excluído.');await carregarDados();APP.modal=null;render();
+}
+function getDocUrl(path){
+  if(!path)return '';
+  const{data}=sb.storage.from('documentos').getPublicUrl(path);
+  return data?.publicUrl||'';
+}
+function buildDocs(){
+  const docs=[...(APP.docs||[])].sort((a,b)=>(b.criado_em||'').localeCompare(a.criado_em||''));
+  const contratos=docs.filter(d=>d.tipo==='Contrato');
+  const comprovantes=docs.filter(d=>d.tipo==='Comprovante');
+  const renderList=(lista)=>lista.length===0
+    ?`<div style="color:var(--mt);font-size:12px;padding:8px 0">Nenhum cadastrado.</div>`
+    :lista.map(d=>`
+    <div class="show-card" id="doc-${d.id}" style="display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.descricao||'Sem descrição'}</div>
+        <div style="font-size:11px;color:var(--mt);margin-top:2px">${d.show_ref?`📎 ${d.show_ref} · `:''}${d.data?fd(d.data):''}</div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
+        ${d.link?`<a href="${d.link}" target="_blank" onclick="event.stopPropagation()" style="background:rgba(88,166,255,.15);color:var(--ac);border:1px solid rgba(88,166,255,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;text-decoration:none">🔗 Link</a>`:''}
+        ${d.arquivo_path?`<a href="${getDocUrl(d.arquivo_path)}" target="_blank" onclick="event.stopPropagation()" style="background:rgba(63,185,80,.15);color:var(--gn);border:1px solid rgba(63,185,80,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:600;text-decoration:none">📄 Arquivo</a>`:''}
+      </div>
+    </div>`).join('');
+  return`
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <div>
+      <h2 style="font-family:var(--font-head);font-size:20px;font-weight:800;letter-spacing:-.5px">Documentos <span style="color:var(--ac)">${docs.length}</span></h2>
+      <p style="font-size:11px;color:var(--mt);margin-top:2px">${contratos.length} contrato${contratos.length!==1?'s':''} · ${comprovantes.length} comprovante${comprovantes.length!==1?'s':''}</p>
+    </div>
+    ${isAdmin()?`<button class="btn-p" id="btn-add-doc">+ Novo documento</button>`:''}
+  </div>
+  <div class="card" style="margin-bottom:10px">
+    <div class="stitle">📄 Contratos (${contratos.length})</div>
+    ${renderList(contratos)}
+  </div>
+  <div class="card">
+    <div class="stitle">🧾 Comprovantes (${comprovantes.length})</div>
+    ${renderList(comprovantes)}
+  </div>`;
+}
+function buildModalDoc(){
+  const f=APP.modal.form,novo=APP.modal.novo;
+  return`<div class="overlay" id="overlay"><div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <span style="font-family:var(--font-head);font-size:16px;font-weight:700">${novo?'Novo documento':'Editar documento'}</span>
+      <button class="btn-g" id="btn-fechar" style="padding:5px 10px;font-size:12px">✕</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <div class="grid2">
+        <div><span class="lbl">Tipo *</span>
+          <select id="f-tipo-doc">
+            <option value="">Selecione...</option>
+            <option value="Contrato"${f.tipo==='Contrato'?' selected':''}>📄 Contrato</option>
+            <option value="Comprovante"${f.tipo==='Comprovante'?' selected':''}>🧾 Comprovante</option>
+          </select>
+        </div>
+        <div><span class="lbl">Data</span><input id="f-data-doc" type="date" value="${f.data||''}"></div>
+      </div>
+      <div><span class="lbl">Descrição *</span><input id="f-desc-doc" value="${f.descricao||''}" placeholder="Ex: Contrato Show Barreira, Comprovante PIX..."></div>
+      <div><span class="lbl">Vincular a show</span>
+        <select id="f-show-doc">
+          <option value="">— Sem vínculo —</option>
+          ${APP.shows.map(s=>`<option value="${s.show_id}"${f.show_ref===s.show_id?' selected':''}>${s.show_id} · ${s.local} ${fd(s.data)}</option>`).join('')}
+        </select>
+      </div>
+      <div><span class="lbl">Link externo (Google Drive, WhatsApp, etc)</span>
+        <input id="f-link-doc" value="${f.link||''}" placeholder="https://drive.google.com/...">
+      </div>
+      <div>
+        <span class="lbl">Upload de arquivo (PDF, imagem)</span>
+        <input id="f-file-doc" type="file" accept=".pdf,.jpg,.jpeg,.png,.webp" style="padding:6px">
+        ${f.arquivo_path?`<div style="font-size:11px;color:var(--gn);margin-top:4px">✅ Arquivo salvo — <a href="${getDocUrl(f.arquivo_path)}" target="_blank" style="color:var(--ac)">visualizar</a></div>`:''}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        ${!novo?`<button class="btn-d" id="btn-del-doc">Excluir</button>`:''}
+        <div style="flex:1"></div>
+        <button class="btn-g" id="btn-fechar2">Cancelar</button>
+        <button class="btn-p" id="btn-salvar-doc" ${APP.loading?'disabled':''}>${APP.loading?'<span class="spinner"></span> Salvando...':'Salvar'}</button>
       </div>
     </div>
   </div></div>`;
