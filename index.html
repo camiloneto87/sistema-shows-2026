@@ -129,7 +129,7 @@ const SHOWS_PADRAO=[
   {show_id:"SHOW-016",data:"2026-12-25",local:"Fortaleza (Natal)",uf:"CE",cache:0,comissao:0,custo:0,sinal:0,status:"CONFIRMADO",obs:"Show de Natal"},
 ];
 
-let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],modal:null,filtroSt:'todos',loading:false,flash:'',chart:null,toastTimer:null};
+let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],modal:null,filtroSt:'todos',loading:false,flash:'',chart:null,chartDesps:null,toastTimer:null};
 
 const R=v=>'R$\u00a0'+Math.round(v||0).toLocaleString('pt-BR');
 const R2=v=>'R$\u00a0'+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0});
@@ -173,7 +173,7 @@ async function importarShowsPadrao(){
   await carregarDados();APP.loading=false;render();
 }
 
-function render(){document.getElementById('app').innerHTML=buildHTML();bindEvents();if(APP.user&&APP.tab==='dash')setTimeout(drawChart,50);if(APP.user&&APP.tab==='mapa')setTimeout(renderMapaSVG,50);}
+function render(){document.getElementById('app').innerHTML=buildHTML();bindEvents();if(APP.user&&APP.tab==='dash'){setTimeout(drawChart,50);setTimeout(drawChartDesps,80);}if(APP.user&&APP.tab==='mapa')setTimeout(renderMapaSVG,50);}
 
 function buildHTML(){
   if(!APP.user)return buildLogin();
@@ -299,10 +299,16 @@ function buildDash(){
     </div>
   </div>
 
-  <!-- Gráfico Chart.js -->
-  <div class="card">
-    <div class="stitle">Receitas mensais (R$)</div>
-    <div style="height:160px"><canvas id="chartMensal"></canvas></div>
+  <!-- Gráficos lado a lado -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:0">
+    <div class="card" style="margin-bottom:0">
+      <div class="stitle">Receitas mensais (R$)</div>
+      <div style="height:160px"><canvas id="chartMensal"></canvas></div>
+    </div>
+    <div class="card" style="margin-bottom:0">
+      <div class="stitle">Despesas mensais (R$)</div>
+      <div style="height:160px"><canvas id="chartDesps"></canvas></div>
+    </div>
   </div>
 
   <!-- Meses mini cards -->
@@ -367,6 +373,26 @@ function drawChart(){
   });
 }
 
+function drawChartDesps(){
+  const ctx=document.getElementById('chartDesps');
+  if(!ctx)return;
+  if(APP.chartDesps){APP.chartDesps.destroy();APP.chartDesps=null;}
+  const de=APP.desps;
+  const data=MESES.map((m,i)=>de.filter(d=>d.data&&+d.data.split('-')[1]===i+1).reduce((t,d)=>t+(d.valor||0),0));
+  APP.chartDesps=new Chart(ctx,{
+    type:'bar',
+    data:{labels:MESES,datasets:[{data,backgroundColor:data.map(v=>v>0?'rgba(248,81,73,.7)':'rgba(33,38,45,.6)'),borderRadius:5,borderSkipped:false}]},
+    options:{
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' '+R(c.parsed.y)},backgroundColor:'#161b22',borderColor:'#30363d',borderWidth:1,titleColor:'#e6edf3',bodyColor:'#8b949e',padding:10,cornerRadius:8}},
+      scales:{
+        x:{ticks:{color:'#8b949e',font:{size:10,family:'DM Sans'}},grid:{display:false},border:{display:false}},
+        y:{ticks:{color:'#8b949e',font:{size:9,family:'DM Sans'},callback:v=>v?`R$${(v/1000).toFixed(0)}K`:''},grid:{color:'rgba(33,38,45,.8)'},border:{display:false}}
+      },
+      responsive:true,maintainAspectRatio:false,animation:{duration:800}
+    }
+  });
+}
+
 function buildShows(){
   const lista=APP.shows.filter(s=>APP.filtroSt==='todos'||s.status===APP.filtroSt).sort((a,b)=>a.data?.localeCompare(b.data));
   return`
@@ -410,7 +436,9 @@ function buildDesps(){
 function buildFluxo(){
   let ac=0;
   const rows=MESES.map((m,i)=>{
-    const ent=APP.receitas.filter(r=>r.data&&+r.data.split('-')[1]===i+1).reduce((t,r)=>t+(r.valor||0),0);
+    const entShows=APP.shows.filter(s=>s.status==='RECEBIDO'&&s.data&&+s.data.split('-')[1]===i+1).reduce((t,s)=>t+(s.cache||0),0);
+    const entRec=APP.receitas.filter(r=>r.data&&+r.data.split('-')[1]===i+1).reduce((t,r)=>t+(r.valor||0),0);
+    const ent=entShows+entRec;
     const sai=APP.desps.filter(d=>d.data&&+d.data.split('-')[1]===i+1).reduce((t,d)=>t+(d.valor||0),0);
     const sal=ent-sai;ac+=sal;return{m,ent,sai,sal,ac};
   });
@@ -534,7 +562,7 @@ function bindEvents(){
   };
   // SAIR
   const bS=document.getElementById('btn-sair');
-  if(bS)bS.onclick=async()=>{if(APP.chart){APP.chart.destroy();APP.chart=null;}await sb.auth.signOut();APP.user=null;APP.role=null;APP.shows=[];APP.desps=[];APP.receitas=[];APP.tab='dash';render();};
+  if(bS)bS.onclick=async()=>{if(APP.chart){APP.chart.destroy();APP.chart=null;}await sb.auth.signOut();APP.user=null;APP.role=null;APP.shows=[];APP.desps=[];APP.receitas=[];APP.tab='dash';if(APP.chartDesps){APP.chartDesps.destroy();APP.chartDesps=null;}render();};
   // NAV
   ['dash','shows','desps','receitas','fluxo','mapa'].forEach(t=>{const el=document.getElementById('nav-'+t);if(el)el.onclick=()=>{APP.tab=t;render();};});
   // FILTROS
