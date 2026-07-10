@@ -481,6 +481,11 @@ function buildModal(){if(APP.modal.tipo==='show')return buildModalShow();if(APP.
 
 function buildModalShow(){
   const f=APP.modal.form,novo=APP.modal.novo;
+  // Despesas vinculadas a este show
+  const custos=!novo?APP.desps.filter(d=>d.show_ref===f.show_id):[];
+  const totalCustos=custos.reduce((t,d)=>t+(d.valor||0),0);
+  const cache=+(f.cache||0);
+  const saldo=cache-totalCustos;
   return`<div class="overlay" id="overlay"><div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
       <span style="font-family:var(--font-head);font-size:16px;font-weight:700">${novo?'Novo show':'Editar show'}</span>
@@ -500,6 +505,37 @@ function buildModalShow(){
         <div><span class="lbl">Sinal recebido (R$)</span><input id="f-sinal" type="number" value="${f.sinal||''}" placeholder="0"></div>
       </div>
       <div><span class="lbl">Observação</span><input id="f-obs" value="${f.obs||''}" placeholder="Ex: cachê parcelado..."></div>
+
+      ${!novo&&custos.length>0?`
+      <div style="border-top:1px solid var(--bd2);padding-top:10px;margin-top:2px">
+        <div style="font-size:10px;color:var(--mt);font-weight:600;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;display:flex;align-items:center;gap:6px">
+          <span style="width:3px;height:13px;border-radius:2px;background:var(--rd);display:inline-block"></span>
+          Custos vinculados (${custos.length})
+        </div>
+        ${custos.map(d=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:0.5px solid var(--bd2);font-size:12px">
+          <div>
+            <span style="color:var(--tx)">${d.descricao||d.categoria}</span>
+            <span style="color:var(--mt);margin-left:6px;font-size:11px">${d.categoria}</span>
+          </div>
+          <span style="color:var(--rd);font-family:monospace;font-weight:600;white-space:nowrap;margin-left:8px">−${R(d.valor)}</span>
+        </div>`).join('')}
+        <div style="display:flex;justify-content:space-between;margin-top:8px;font-size:12px">
+          <span style="color:var(--mt)">Total custos</span>
+          <span style="color:var(--rd);font-family:monospace;font-weight:700">−${R(totalCustos)}</span>
+        </div>
+      </div>
+      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:600;color:var(--mt)">Saldo do show</span>
+        <span style="font-family:var(--font-head);font-size:16px;font-weight:700;color:${saldo>=0?'var(--gn)':'var(--rd)'}">${R(saldo)}</span>
+      </div>`:''}
+
+      ${!novo&&custos.length===0&&cache>0?`
+      <div style="background:var(--bg3);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;color:var(--mt)">Nenhum custo vinculado</span>
+        <span style="font-size:11px;color:var(--mt)">Vincule despesas a ${f.show_id}</span>
+      </div>`:''}
+
       <div style="display:flex;gap:8px;margin-top:4px">
         ${!novo?`<button class="btn-d" id="btn-del-show">Excluir</button>`:''}
         <div style="flex:1"></div>
