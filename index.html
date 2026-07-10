@@ -129,7 +129,7 @@ const SHOWS_PADRAO=[
   {show_id:"SHOW-016",data:"2026-12-25",local:"Fortaleza (Natal)",uf:"CE",cache:0,comissao:0,custo:0,sinal:0,status:"CONFIRMADO",obs:"Show de Natal"},
 ];
 
-let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],docs:[],modal:null,filtroSt:'todos',filtroMesShow:0,filtroMesRec:0,filtroMesDesp:0,loading:false,flash:'',chart:null,chartDesps:null,toastTimer:null};
+let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],docs:[],modal:null,filtroSt:'todos',filtroMesShow:0,filtroMesRec:0,filtroMesDesp:0,filtroMesDocs:0,loading:false,flash:'',chart:null,chartDesps:null,toastTimer:null};
 
 const R=v=>'R$\u00a0'+Math.round(v||0).toLocaleString('pt-BR');
 const R2=v=>'R$\u00a0'+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0});
@@ -691,6 +691,9 @@ function bindEvents(){
   // FILTRO MÊS DESPESAS
   MESES.forEach((m,i)=>{const el=document.getElementById('fmd-'+(i+1));if(el)el.onclick=()=>{APP.filtroMesDesp=i+1;render();};});
   const fmd0=document.getElementById('fmd-0');if(fmd0)fmd0.onclick=()=>{APP.filtroMesDesp=0;render();};
+  // FILTRO MÊS DOCS
+  MESES.forEach((m,i)=>{const el=document.getElementById('fmd2-'+(i+1));if(el)el.onclick=()=>{APP.filtroMesDocs=i+1;render();};});
+  const fmd20=document.getElementById('fmd2-0');if(fmd20)fmd20.onclick=()=>{APP.filtroMesDocs=0;render();};
   // ADD DOC
   const bADoc=document.getElementById('btn-add-doc');if(bADoc)bADoc.onclick=()=>{APP.modal={tipo:'doc',novo:true,form:{}};render();};
   // CLICK DOC
@@ -1039,7 +1042,8 @@ function getDocUrl(path){
   return data?.publicUrl||'';
 }
 function buildDocs(){
-  const docs=[...(APP.docs||[])].sort((a,b)=>(b.criado_em||'').localeCompare(a.criado_em||''));
+  const todos=[...(APP.docs||[])].sort((a,b)=>(b.data||b.criado_em||'').localeCompare(a.data||a.criado_em||''));
+  const docs=APP.filtroMesDocs===0?todos:todos.filter(d=>d.data&&+d.data.split('-')[1]===APP.filtroMesDocs);
   const contratos=docs.filter(d=>d.tipo==='Contrato');
   const comprovantes=docs.filter(d=>d.tipo==='Comprovante');
   const renderList=(lista)=>lista.length===0
@@ -1056,12 +1060,17 @@ function buildDocs(){
       </div>
     </div>`).join('');
   return`
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
     <div>
-      <h2 style="font-family:var(--font-head);font-size:20px;font-weight:800;letter-spacing:-.5px">Documentos <span style="color:var(--ac)">${docs.length}</span></h2>
+      <h2 style="font-family:var(--font-head);font-size:20px;font-weight:800;letter-spacing:-.5px">Documentos <span style="color:var(--ac)">${APP.filtroMesDocs>0?MESES[APP.filtroMesDocs-1]:'2026'}</span></h2>
       <p style="font-size:11px;color:var(--mt);margin-top:2px">${contratos.length} contrato${contratos.length!==1?'s':''} · ${comprovantes.length} comprovante${comprovantes.length!==1?'s':''}</p>
     </div>
     ${isAdmin()?`<button class="btn-p" id="btn-add-doc">+ Novo documento</button>`:''}
+  </div>
+  <!-- Filtro mês -->
+  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px">
+    ${[['Todos',0],...MESES.map((m,i)=>[m,i+1])].map(([l,v])=>`
+    <button class="filt-btn" id="fmd2-${v}" style="background:${APP.filtroMesDocs===v?'rgba(88,166,255,.15)':'var(--bg2)'};color:${APP.filtroMesDocs===v?'var(--ac)':'var(--mt)'};border:1px solid ${APP.filtroMesDocs===v?'var(--ac)':'var(--bd2)'}">${l}</button>`).join('')}
   </div>
   <div class="card" style="margin-bottom:10px">
     <div class="stitle">📄 Contratos (${contratos.length})</div>
