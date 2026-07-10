@@ -129,7 +129,7 @@ const SHOWS_PADRAO=[
   {show_id:"SHOW-016",data:"2026-12-25",local:"Fortaleza (Natal)",uf:"CE",cache:0,comissao:0,custo:0,sinal:0,status:"CONFIRMADO",obs:"Show de Natal"},
 ];
 
-let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],docs:[],modal:null,filtroSt:'todos',filtroMesRec:0,filtroMesDesp:0,loading:false,flash:'',chart:null,chartDesps:null,toastTimer:null};
+let APP={user:null,role:null,tab:'dash',shows:[],desps:[],receitas:[],docs:[],modal:null,filtroSt:'todos',filtroMesShow:0,filtroMesRec:0,filtroMesDesp:0,loading:false,flash:'',chart:null,chartDesps:null,toastTimer:null};
 
 const R=v=>'R$\u00a0'+Math.round(v||0).toLocaleString('pt-BR');
 const R2=v=>'R$\u00a0'+Number(v||0).toLocaleString('pt-BR',{minimumFractionDigits:0});
@@ -394,9 +394,23 @@ function drawChartDesps(){
 }
 
 function buildShows(){
-  const lista=APP.shows.filter(s=>APP.filtroSt==='todos'||s.status===APP.filtroSt).sort((a,b)=>a.data?.localeCompare(b.data));
+  const porStatus=APP.shows.filter(s=>APP.filtroSt==='todos'||s.status===APP.filtroSt);
+  const lista=porStatus.filter(s=>APP.filtroMesShow===0||(s.data&&+s.data.split('-')[1]===APP.filtroMesShow)).sort((a,b)=>a.data?.localeCompare(b.data));
+  const total=lista.reduce((t,s)=>t+(s.cache||0),0);
   return`
-  ${isAdmin()?`<div class="row-space"><button class="btn-p" id="btn-add-show">+ Novo show</button></div>`:''}
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div>
+      <h2 style="font-family:var(--font-head);font-size:20px;font-weight:800;letter-spacing:-.5px">Shows <span style="color:var(--ac)">${APP.filtroMesShow>0?MESES[APP.filtroMesShow-1]:'2026'}</span></h2>
+      <p style="font-size:11px;color:var(--mt);margin-top:2px">${lista.length} show${lista.length!==1?'s':''}${total>0?' · Cachê: <strong style="color:var(--gn)">'+R2(total)+'</strong>':''}</p>
+    </div>
+    ${isAdmin()?`<button class="btn-p" id="btn-add-show">+ Novo show</button>`:''}
+  </div>
+  <!-- Filtro mês -->
+  <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px">
+    ${[['Todos',0],...MESES.map((m,i)=>[m,i+1])].map(([l,v])=>`
+    <button class="filt-btn" id="fms-${v}" style="background:${APP.filtroMesShow===v?'rgba(88,166,255,.15)':'var(--bg2)'};color:${APP.filtroMesShow===v?'var(--ac)':'var(--mt)'};border:1px solid ${APP.filtroMesShow===v?'var(--ac)':'var(--bd2)'}">${l}</button>`).join('')}
+  </div>
+  <!-- Filtro status -->
   <div style="margin-bottom:10px;display:flex;flex-wrap:wrap">
     ${['todos','CONFIRMADO','ABERTO','RECEBIDO','SINAL PAGO','CANCELADO'].map(f=>`
     <button class="filt-btn" id="fst-${f.replace(' ','-')}" style="background:${APP.filtroSt===f?'rgba(88,166,255,.15)':'var(--bg2)'};color:${APP.filtroSt===f?'var(--ac)':'var(--mt)'};border:1px solid ${APP.filtroSt===f?'var(--ac)':'var(--bd2)'}">
@@ -668,6 +682,9 @@ function bindEvents(){
     salvarDesp(f,APP.modal.novo?null:APP.modal.form.id);
   };
   const bDD=document.getElementById('btn-del-desp');if(bDD)bDD.onclick=()=>excluirDesp(APP.modal.form.id);
+  // FILTRO MÊS SHOWS
+  MESES.forEach((m,i)=>{const el=document.getElementById('fms-'+(i+1));if(el)el.onclick=()=>{APP.filtroMesShow=i+1;render();};});
+  const fms0=document.getElementById('fms-0');if(fms0)fms0.onclick=()=>{APP.filtroMesShow=0;render();};
   // FILTRO MÊS RECEITAS
   MESES.forEach((m,i)=>{const el=document.getElementById('fmr-'+(i+1));if(el)el.onclick=()=>{APP.filtroMesRec=i+1;render();};});
   const fmr0=document.getElementById('fmr-0');if(fmr0)fmr0.onclick=()=>{APP.filtroMesRec=0;render();};
