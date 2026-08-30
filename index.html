@@ -146,12 +146,19 @@ async function carregarDados(){
   APP.shows=sh||[];APP.desps=de||[];APP.receitas=rc||[];APP.docs=dc||[];
 }
 async function salvarShow(form,id=null){
+  // Capturar status do DOM agora, antes de qualquer render
+  const stEl=document.getElementById('f-status');
+  if(stEl) form.status=stEl.options[stEl.selectedIndex].value;
   APP.loading=true;render();
-  const dados={show_id:form.show_id,data:form.data,local:form.local,uf:form.uf,cache:+form.cache||0,sinal:+form.sinal||0,status:form.status,obs:form.obs||'',user_id:APP.user.id};
   let err;
-  if(id){({error:err}=await sb.from('shows').update(dados).eq('id',id));}
-  else{({error:err}=await sb.from('shows').insert(dados));}
-  if(err)toast('Erro: '+err.message,'err'); else toast('Show salvo!');
+  if(id){
+    const upd={show_id:form.show_id,data:form.data,local:form.local,uf:form.uf,cache:+form.cache||0,sinal:+form.sinal||0,status:form.status,obs:form.obs||''};
+    ({error:err}=await sb.from('shows').update(upd).eq('id',id));
+  } else {
+    const ins={show_id:form.show_id,data:form.data,local:form.local,uf:form.uf,cache:+form.cache||0,sinal:+form.sinal||0,status:form.status,obs:form.obs||'',user_id:APP.user.id};
+    ({error:err}=await sb.from('shows').insert(ins));
+  }
+  if(err)toast('Erro: '+err.message,'err'); else toast('Show salvo! Status: '+form.status);
   await carregarDados();APP.loading=false;APP.modal=null;render();
 }
 async function excluirShow(id){if(!confirm('Excluir este show?'))return;await sb.from('shows').delete().eq('id',id);toast('Excluído.');await carregarDados();APP.modal=null;render();}
