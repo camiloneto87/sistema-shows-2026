@@ -661,17 +661,20 @@ function bindEvents(){
   // SALVAR SHOW
   const bSS=document.getElementById('btn-salvar-show');
   if(bSS)bSS.onclick=()=>{
-    const f=APP.modal.form;
+    // Capturar TODOS os valores antes de qualquer render()
+    const localVal=document.getElementById('f-local')?.value||'';
+    const ufVal=document.getElementById('f-uf')?.value||'CE';
+    const dataVal=document.getElementById('f-data')?.value||'';
     const stEl=document.getElementById('f-status');
-    f.local=document.getElementById('f-local')?.value||'';
-    f.uf=document.getElementById('f-uf')?.value||'CE';
-    f.data=document.getElementById('f-data')?.value||'';
-    f.status=stEl?stEl.options[stEl.selectedIndex].value:f.status||'CONFIRMADO';
-    f.cache=+(document.getElementById('f-cache')?.value||0);
-    f.sinal=+(document.getElementById('f-sinal')?.value||0);
-    f.obs=document.getElementById('f-obs')?.value||'';
-    if(!f.local||!f.data){toast('Preencha Local e Data.','err');return;}
-    salvarShow(f,APP.modal.novo?null:APP.modal.form.id);
+    const statusVal=stEl?stEl.options[stEl.selectedIndex].value:'CONFIRMADO';
+    const cacheVal=+(document.getElementById('f-cache')?.value||0);
+    const sinalVal=+(document.getElementById('f-sinal')?.value||0);
+    const obsVal=document.getElementById('f-obs')?.value||'';
+    if(!localVal||!dataVal){toast('Preencha Local e Data.','err');return;}
+    const f=APP.modal.form;
+    const showId=APP.modal.novo?null:f.id;
+    const formData={...f,local:localVal,uf:ufVal,data:dataVal,status:statusVal,cache:cacheVal,sinal:sinalVal,obs:obsVal};
+    salvarShow(formData,showId);
   };
   const bDS=document.getElementById('btn-del-show');if(bDS)bDS.onclick=()=>excluirShow(APP.modal.form.id);
   // SALVAR DESP
