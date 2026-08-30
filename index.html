@@ -662,8 +662,11 @@ function bindEvents(){
   const bSS=document.getElementById('btn-salvar-show');
   if(bSS)bSS.onclick=()=>{
     const f=APP.modal.form;
-    f.local=document.getElementById('f-local')?.value||'';f.uf=document.getElementById('f-uf')?.value||'CE';
-    f.data=document.getElementById('f-data')?.value||'';f.status=document.getElementById('f-status')?.value||'CONFIRMADO';
+    const stEl=document.getElementById('f-status');
+    f.local=document.getElementById('f-local')?.value||'';
+    f.uf=document.getElementById('f-uf')?.value||'CE';
+    f.data=document.getElementById('f-data')?.value||'';
+    f.status=stEl?stEl.options[stEl.selectedIndex].value:f.status||'CONFIRMADO';
     f.cache=+(document.getElementById('f-cache')?.value||0);
     f.sinal=+(document.getElementById('f-sinal')?.value||0);
     f.obs=document.getElementById('f-obs')?.value||'';
